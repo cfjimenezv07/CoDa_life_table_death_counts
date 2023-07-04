@@ -15,7 +15,7 @@ This project presents the Rcodes for the paper: "Forecasting density-valued func
    6.3 Point_forecasting_FANOVA.R
    6.4 forecast_errors.R
    6.5 CoDa_nonparametric_boot.R and Compute_coverages_all_fh.R
-# CoDa_case_France.R: Reproduces all the results for the US dataset
+# CoDa_case_France.R: Reproduces all the results for the French dataset
 1. Computes the clr transformation to remove the constraints in the density-valued FTS. This is carried out with the function CoDA_transformation.R
 2. Computes the FMP-ANOVA in the unconstrained domain. This is carried out with the function FMP_decomposition.R
 3. Computes point forecasts based on lrc estimation. This is carried out with the function Point_forecasting.R
