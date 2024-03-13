@@ -1,0 +1,6 @@
+library(tidyverse)
+library(leaflet) 
+library(sf)
+source("ui.R")
+source("server.R")
+shinyApp(Ui, SERVER)

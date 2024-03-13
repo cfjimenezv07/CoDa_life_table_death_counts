@@ -1,0 +1,28 @@
+ife.data <- readRDS("./data/IFE_all.Rds")
+
+gen_ife_table <- function(.country, .divison, .gender, .coverage) {
+  df <- ife.data %>% 
+    filter(country == .country, pol_division == .divison, 
+           gender == tolower(.gender), coverage == as.numeric(gsub("%", "", .coverage))) %>% 
+    select(-(gender:pol_division))
+  l.table <- df %>% 
+    filter(method == "FMP-ANOVA") %>% 
+    select(-method) %>% 
+    pivot_wider(names_from = metric, values_from = value) %>% 
+    select(h, CPD, ECP, IS) %>% 
+    round(4)
+  
+  r.table <- df %>% 
+    filter(method != "FMP-ANOVA") %>% 
+    select(-method) %>% 
+    pivot_wider(names_from = metric, values_from = value) %>% 
+    select(CPD, ECP, IS, -h) %>% 
+    round(4)
+  
+  temp <- cbind(l.table, r.table)
+  last.row <- round(colMeans(temp), 4)
+  last.row[1] <- "Mean"
+  rbind(temp[1:5, ], last.row, temp[-(1:5), ], last.row)
+}
+
+gen_ife_table("USA", "Alabama", "Female", "95%")

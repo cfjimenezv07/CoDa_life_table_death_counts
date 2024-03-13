@@ -1,0 +1,255 @@
+# Replicate TNH code for Japan
+
+packages <- c("generics", "demography", "forecast","fda","fdaoutlier", 
+              "rlist", "mrfDepth","ftsa","rainbow")
+
+## Now load or install&load all
+package_check <- lapply(
+  packages,
+  FUN <- function(x) {
+    if (!require(x, character.only = TRUE)) {
+      install.packages(x, dependencies = TRUE)
+      library(x, character.only = TRUE)
+    }
+  }
+)
+
+setwd("/Users/jimenecf/My Drive/Fall 2023/STAT 397/PhD project 4/Revisions from JCGS/Rcodes/")
+
+################################################################################
+# Dataset entries
+################################################################################
+dataset_entries<-readRDS("./Rcodes_paper/dataset_entries/Japan/dataset_entries.rds")
+year = dataset_entries[[1]]
+n_year = dataset_entries[[2]]
+age = dataset_entries[[3]]
+n_age = dataset_entries[[4]]
+n_prefectures=dataset_entries[[5]]
+
+# Row partition
+part_list = list()
+for(ik in 1:n_prefectures) {
+  part_list[[ik]] = (n_year*ik-(n_year-1)):(n_year*ik)
+}
+
+#Column partition
+n_populations=2
+part_list_c = list()
+for(ik in 1:n_populations) {
+  part_list_c[[ik]] = (n_age*ik-(n_age-1)):(n_age*ik)
+}
+
+################################################################################
+# Datasets 
+################################################################################
+# Japan
+names_states_Japan <- readRDS("./Rcodes_paper/names_states/Japan/names_states.rds")
+Japan_male <- readRDS("./Rcodes_paper/datasets/Japan/Japan_male.rds")
+Japan_female <- readRDS("./Rcodes_paper/datasets/Japan/Japan_female.rds")
+all_male_Japan<-t(list.cbind(Japan_male))
+all_female_Japan<-t(list.cbind(Japan_female))
+
+source("aux_TNH.R")
+# Remove the zeros in the datasets
+Japan_male   <-remove_zeroes(data_raw=Japan_male,n_prefectures,n_year,n_age) 
+Japan_female <-remove_zeroes(data_raw=Japan_female,n_prefectures,n_year,n_age) 
+################################################################################
+# Gao et al 2019 and TNH code parameters and auxiliary funtions
+################################################################################
+source('./TNH_code/mortality data/codes/MITS_class.R') 
+
+# path_files = './TNH_code/mortality data/regions'
+# path_saved_files = './TNH_code/mortality data/results'
+# path_Gaodata = './TNH_code/data_Gao'
+# country = "Japan"
+
+################################################################################
+# Fit the data sets with the Gao 2019 approach rolling window
+################################################################################
+order <- 3
+r <- 3
+p <- 9
+h_max <- 10
+years <-  sapply(year,toString)
+################################################################################
+# For the data set: Japan female
+################################################################################
+
+
+tmp <- init_data_new(data=Japan_female,p,Names=names_states_Japan)
+data_female <- tmp[[1]]  # datasets for Gao2019
+mixed_fts_female <- tmp[[2]]
+# basis splines
+basis <- create.bspline.basis(c(0, 1), nbasis = p, norder = 4)
+args <- seq(0, 1, length=n_age)
+model_female <- list()
+training_set_female <- list()
+
+
+# Training model for Gao 2019
+model_female <- list()
+for(t in 1:h_max){ 
+  training_set_female[[years[n_year+t-h_max]]] <- trim_data_new(data_female,t)[[1]]
+  model_female[[years[n_year+t-h_max]]] <- hdfpca(training_set_female[[years[n_year+t-h_max]]], order, q = sqrt(dim(training_set_female[[years[n_year+t-h_max]]][[1]])[2]),r) 
+}
+
+saveRDS(model_female,"Gao_model_Japan_female_Japan.rds")
+
+
+predictions_GAO_female <- list()
+predictions_NTH_female <- list()
+for(h in 1:h_max){
+  predictions_GAO_female[[h]] <- array(0,dim=c(n_prefectures,1,n_age))
+  predictions_NTH_female[[h]] <- array(0,dim=c(n_prefectures,1,n_age))
+}
+
+r_hat_female <- list()
+cp_female <- list()
+for(t in 1:h_max){
+  cp_female[[years[n_year+t-h_max]]] <- mixed_fts_female$copy()
+  cp_female[[years[n_year+t-h_max]]]$trimSampleSize(n_year+t-h_max)
+  r_hat_female[[years[n_year+t-h_max]]] <-   est_r_abc(cp_female[[years[n_year+t-h_max]]],h_max)
+  print(paste('estimated r for year ',years[n_year+t-h_max],': ',r_hat_female[[years[n_year+t-h_max]]]))
+}
+
+# for(t in 1:h_max){
+#   print(paste('estimated r for year ',years[n_year+t-h_max],n_year+t-h_max,t,(t+n_year-h_max-1)))
+#   
+# }
+
+for(h in 1:h_max){
+  predictions_NTH_female[[h]][,1,] <- predict_NTH_rknown_v2(cp_female[[years[n_year+h-h_max]]],h,p,basis,args,r_hat_female[[years[n_year+h-h_max]]])
+  
+}
+
+
+for(t in 1:h_max){ 
+  tmp <- forecast.hdfpca(model_female[[years[n_year+t-h_max]]],h=h_max,B=1)
+  for(i in 1:n_prefectures){
+    predictions_GAO_female[[t]][i,,] <- tmp$forecast[[i]][,t]
+  }
+}
+
+saveRDS(predictions_NTH_female,"predictions_NTH_female_Japan.rds")
+saveRDS(predictions_GAO_female,"predictions_GAO_female_Japan.rds")
+################################################################################
+# For the dataset: Japan_male
+################################################################################
+
+
+tmp <- init_data_new(data=Japan_male,p,Names=names_states_Japan)
+data_male <- tmp[[1]]  # datasets for Gao2019
+mixed_fts_male <- tmp[[2]]
+# basis splines
+basis <- create.bspline.basis(c(0, 1), nbasis = p, norder = 4)
+args <- seq(0, 1, length=n_age)
+model_male <- list()
+training_set_male <- list()
+
+
+# Training model for Gao 2019
+model_male <- list()
+for(t in 1:h_max){ 
+  training_set_male[[years[n_year+t-h_max]]] <- trim_data_new(data_male,t)[[1]]
+  model_male[[years[n_year+t-h_max]]] <- hdfpca(training_set_male[[years[n_year+t-h_max]]], order, q = sqrt(dim(training_set_female[[years[n_year+t-h_max]]][[1]])[2]),r) 
+}
+
+saveRDS(model_male,"Gao_model_Japan_male.rds")
+
+
+predictions_GAO_male <- list()
+predictions_NTH_male <- list()
+for(h in 1:h_max){
+  predictions_GAO_male[[h]] <- array(0,dim=c(n_prefectures,1,n_age))
+  predictions_NTH_male[[h]] <- array(0,dim=c(n_prefectures,1,n_age))
+}
+
+r_hat_male <- list()
+cp_male <- list()
+for(t in 1:h_max){
+  cp_male[[years[n_year+t-h_max]]] <- mixed_fts_male$copy()
+  cp_male[[years[n_year+t-h_max]]]$trimSampleSize(n_year+t-h_max)
+  r_hat_male[[years[n_year+t-h_max]]] <-   est_r_abc(cp_male[[years[n_year+t-h_max]]],h_max)
+  print(paste('estimated r for year ',years[n_year+t-h_max],': ',r_hat_male[[years[n_year+t-h_max]]]))
+}
+
+# for(t in 1:h_max){
+#   print(paste('estimated r for year ',years[n_year+t-h_max],n_year+t-h_max,t,(t+n_year-h_max-1)))
+#   
+# }
+
+for(h in 1:h_max){
+  predictions_NTH_male[[h]][,1,] <- predict_NTH_rknown_v2(cp_male[[years[n_year+h-h_max]]],h,p,basis,args,r_hat_male[[years[n_year+h-h_max]]])
+  
+}
+
+
+for(t in 1:h_max){ 
+  tmp <- forecast.hdfpca(model_male[[years[n_year+t-h_max]]],h=h_max,B=1)
+  for(i in 1:n_prefectures){
+    predictions_GAO_male[[t]][i,,] <- tmp$forecast[[i]][,t]
+  }
+}
+
+saveRDS(predictions_NTH_male,"predictions_NTH_male_Japan.rds")
+saveRDS(predictions_GAO_male,"predictions_GAO_male_Japan.rds")
+####################################################################################
+#Compute the error for the point forecasts obtained in the rolling window approach.
+####################################################################################
+# Load the predictions
+predictions_GAO_male_Japan   <- readRDS("./predictions_GAO_male_Japan.rds")
+predictions_GAO_female_Japan <- readRDS("./predictions_GAO_female_Japan.rds")
+predictions_TNH_male_Japan   <- readRDS("./predictions_NTH_male_Japan.rds")
+predictions_TNH_female_Japan <- readRDS("./predictions_NTH_female_Japan.rds")
+
+
+source("./Rcodes_paper/forecast_errors.R")
+GAO_error_MAPE_male<-matrix(0,nrow=h_max,ncol = n_prefectures)
+GAO_error_RMSPE_male<-matrix(0,nrow=h_max,ncol = n_prefectures)
+GAO_error_MAPE_female<-matrix(0,nrow=h_max,ncol = n_prefectures)
+GAO_error_RMSPE_female<-matrix(0,nrow=h_max,ncol = n_prefectures)
+TNH_error_MAPE_male<-matrix(0,nrow=h_max,ncol = n_prefectures)
+TNH_error_RMSPE_male<-matrix(0,nrow=h_max,ncol = n_prefectures)
+TNH_error_MAPE_female<-matrix(0,nrow=h_max,ncol = n_prefectures)
+TNH_error_RMSPE_female<-matrix(0,nrow=h_max,ncol = n_prefectures)
+for (i in 1:n_prefectures) {
+  for (j in 1:h_max) {
+    GAO_forecasted_pref_male=predictions_GAO_male_Japan[[j]][i,1,]
+    GAO_forecasted_pref_female=predictions_GAO_female_Japan[[j]][i,1,]
+    TNH_forecasted_pref_male=predictions_TNH_male_Japan[[j]][i,1,]
+    TNH_forecasted_pref_female=predictions_TNH_female_Japan[[j]][i,1,]
+    True_pop_male= data_male[[i]][,n_year+j-h_max]
+    True_pop_female=data_female[[i]][,n_year+j-h_max]
+    GAO_error_MAPE_male[j,i]<-mape(forecast=GAO_forecasted_pref_male, true=True_pop_male)
+    GAO_error_RMSPE_male[j,i]<-rmspe(forecast=GAO_forecasted_pref_male, true=True_pop_male)
+    GAO_error_MAPE_female[j,i]<-mape(forecast=GAO_forecasted_pref_female, true=True_pop_female)
+    GAO_error_RMSPE_female[j,i]<-rmspe(forecast=GAO_forecasted_pref_female, true=True_pop_female)
+    TNH_error_MAPE_male[j,i]<-mape(forecast=TNH_forecasted_pref_male, true=True_pop_male)
+    TNH_error_RMSPE_male[j,i]<-rmspe(forecast=TNH_forecasted_pref_male, true=True_pop_male)
+    TNH_error_MAPE_female[j,i]<-mape(forecast=TNH_forecasted_pref_female, true=True_pop_female)
+    TNH_error_RMSPE_female[j,i]<-rmspe(forecast=TNH_forecasted_pref_female, true=True_pop_female)
+  }
+  
+}
+
+All_errors_rolling<-list(GAO_error_MAPE_male,GAO_error_MAPE_female,
+                         GAO_error_RMSPE_male,GAO_error_RMSPE_female,
+                         TNH_error_MAPE_male,TNH_error_MAPE_female,
+                         TNH_error_RMSPE_male,TNH_error_RMSPE_female)
+
+Errors_mean_rolling<-matrix(0,nrow=n_prefectures,ncol=length(All_errors_rolling))
+Errors_sd_rolling<-matrix(0,nrow=n_prefectures,ncol=length(All_errors_rolling))
+for (i in 1:length(All_errors_rolling)) {
+  error=All_errors_rolling[[i]]
+  Errors_mean_rolling[,i]=apply( error,2,mean)
+  Errors_sd_rolling[,i]=apply( error,2,sd)
+}
+colnames(Errors_mean_rolling)<-c("Gao_MAPE_male","Gao_MAPE_female","Gao_RMSPE_male","Gao_RMSPE_female",
+                                 "TNH_MAPE_male","TNH_MAPE_female","TNH_RMSPE_male","TNH_RMSPE_female")
+colnames(Errors_sd_rolling)<-c("Gao_MAPE_male","Gao_MAPE_female","Gao_RMSPE_male","Gao_RMSPE_female",
+                               "TNH_MAPE_male","TNH_MAPE_female","TNH_RMSPE_male","TNH_RMSPE_female")
+rownames(Errors_mean_rolling)<-names_states_Japan
+rownames(Errors_sd_rolling)<-names_states_Japan
+
+saveRDS(Errors_mean_rolling[,1:4],"Errors_GAO_Japan.rds")
+saveRDS(Errors_mean_rolling[,5:8],"Errors_TNH_Japan.rds")

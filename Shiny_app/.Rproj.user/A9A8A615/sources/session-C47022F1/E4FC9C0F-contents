@@ -1,0 +1,23 @@
+
+
+forecasted_prefecture_FM_VAR <- list()
+
+for (i in 1:n_prefectures) {
+  # i=49
+  pref=(n_year * i - (n_year - 1)):(n_year * i)
+  forecasted_prefecture <- matrix(NA, nrow = n_age * 2, ncol = max_h)
+  for (k in 1:10) {
+    pref_k <- pref[k:(n_year - max_h - 1 + k)]
+    frc <- Pref_forecast_curves(fixed_com = fixed_com[pref_k, ],
+                                Residuals_f = Residuals_f[pref_k, ],
+                                est_method = est_method,
+                                fh = 1, PI = NULL, B = 1000, prediction_method=prediction_method)
+    forecasted_prefecture[ , k] = frc$med_polish_curve_forecast
+    print(k)
+  }
+  forecasted_prefecture_FM_VAR[[i]] <- forecasted_prefecture
+  print(i)
+}
+
+
+saveRDS(forecasted_prefecture_FM_VAR,"forecasted_curves_USA_FM_VAR_cov.rds")

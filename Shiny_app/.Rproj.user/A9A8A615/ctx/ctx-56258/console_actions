@@ -1,0 +1,32 @@
+{
+    "type": [
+        0,
+        1,
+        2,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        2
+    ],
+    "data": [
+        "> ",
+        "fh",
+        "[1] 1\n",
+        "Warning messages:\n",
+        "1: ",
+        "In doTryCatch(return(expr), name, parentenv, handler) :",
+        "\n ",
+        " display list redraw incomplete\n",
+        "2: ",
+        "In doTryCatch(return(expr), name, parentenv, handler) :",
+        "\n ",
+        " display list redraw incomplete\n",
+        "\nRestarting R session...\n\n"
+    ]
+}

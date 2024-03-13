@@ -1,0 +1,8 @@
+sqrt_pm10 = sqrt(pm_10_GR$y)
+multi_forecast_sqrt_pm10 = farforecast(object = fts(seq(0, 23.5, by = 0.5), sqrt_pm10), 
+                                       h = 1, Dmax_value = 5, Pmax_value = 3)
+multi_forecast_sqrt_pm10$point_fore$y
+
+
+forecasted_curves_triangular_rolling_USA_FMP_VAR <- foreach(i = 1:n_prefectures, .packages = c("ftsa")) %dopar% ForecastC(i,fixed_com=Fixed_part,Residuals_f=Residuals_,est_method = "lrc",prediction_method="VAR")
+

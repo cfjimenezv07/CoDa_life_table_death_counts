@@ -1,0 +1,512 @@
+var_type = "None"
+################################################################################
+# Computation of the point forecasts
+################################################################################
+source("New_Point_forecast.R")
+# With a rolling window approach
+cl <- makePSOCKcluster(detectCores()-2)
+registerDoParallel(cl)
+forecasted_curves_triangular_rolling_USA_FMP_VAR <- foreach(i = 1:n_prefectures, .packages = c("ftsa")) %dopar% ForecastC(i,fixed_com=Fixed_part,Residuals_f=Residuals_,est_method = "lrc",prediction_method="VAR")
+fixed_com=Fixed_part
+Residuals_f=Residuals_
+est_method = "lrc"
+prediction_method="VAR"
+i
+pref=(n_year * i - (n_year - 1)):(n_year * i)
+forecasted_prefecture <- matrix(0, nrow = n_age * 2, ncol = max_h)
+k=1
+Pref_forecast_curves<-function(fixed_com,Residuals_f,
+est_method = c("lrc", "cov"),
+fh = 10, PI = NULL, B = 1000,
+prediction_method=c("ARIMA","VAR")){
+med_polish_resi=t(Residuals_f)
+if(est_method == "lrc"){
+# estimate long-run covariance by kernel sandwich estimator
+med_polish_resi_lrc = long_run_covariance_estimation(med_polish_resi)
+}else if(est_method == "cov"){
+# estimate empirical covariance function
+med_polish_resi_lrc = cov(t(med_polish_resi))
+}
+# perform eigen-decomposition
+med_polish_resi_eigen = eigen(med_polish_resi_lrc)
+# determine retained number of components via eigenvalue ratio
+ret_component = vector("numeric", length(med_polish_resi_eigen$values) - 1)
+for(ik in 1:(length(med_polish_resi_eigen$values) - 1)){
+ret_component[ik] = med_polish_resi_eigen$values[ik+1]/med_polish_resi_eigen$values[ik]
+}
+retain_component = which.min(ret_component)
+# determine 1st set of basis function and its scores
+med_polish_resi_basis = as.matrix(med_polish_resi_eigen$vectors[,1:retain_component])
+med_polish_resi_score = crossprod(med_polish_resi, med_polish_resi_basis)
+# obtain forecasts of PC scores via auto.arima
+med_polish_resi_score_forecast = matrix(NA, retain_component, fh)
+med_polish_resi_score_forecast_boot = array(NA, dim = c(retain_component, fh, B))
+if(prediction_method=="ARIMA"){
+for(ik in 1:retain_component){
+dum = forecast_Arima(object=auto.arima(med_polish_resi_score[,ik]), h = fh, bootstrap = TRUE, npaths = B)
+med_polish_resi_score_forecast[ik,] = dum$mean
+med_polish_resi_score_forecast_boot[ik,,] = t(dum$sim)
+rm(ik); rm(dum)
+}
+}else{
+n_col=dim(t(med_polish_resi_score))[2]
+rownames(med_polish_resi_score) = 1:n_col
+dum = farforecast(object = fts(1:dim(t(med_polish_resi_score))[1],t(med_polish_resi_score)),
+h = fh, Dmax_value = 5, Pmax_value =3 ,var_type = "none")
+med_polish_resi_score_forecast = dum$point_fore$y
+}
+med_polish_resi_forecast = med_polish_resi_basis %*% med_polish_resi_score_forecast
+# add the fixed parts
+Fixed=t(fixed_com)[,1:fh]
+med_polish_curve_forecast = med_polish_resi_forecast + Fixed
+return(list(med_polish_curve_forecast=med_polish_curve_forecast,
+med_polish_resi_forecast=  med_polish_resi_forecast))
+}
+for (k in 1:max_h) {
+pref_k <- pref[k:(n_year - max_h - 1 + k)]
+frc <- Pref_forecast_curves(fixed_com = fixed_com[pref_k, ],
+Residuals_f = Residuals_f[pref_k, ],
+est_method = est_method,
+fh = 1, PI = NULL, B = 1000, prediction_method=prediction_method)
+forecasted_prefecture[ , k] = frc$med_polish_curve_forecast
+print(k)
+}
+warnings()
+View(forecasted_prefecture )
+matplot(forecasted_prefecture[,1:3],type='l')
+Pref_forecast_curves<-function(fixed_com,Residuals_f,
+est_method = c("lrc", "cov"),
+fh = 10, PI = NULL, B = 1000,
+prediction_method=c("ARIMA","VAR")){
+med_polish_resi=t(Residuals_f)
+if(est_method == "lrc"){
+# estimate long-run covariance by kernel sandwich estimator
+med_polish_resi_lrc = long_run_covariance_estimation(med_polish_resi)
+}else if(est_method == "cov"){
+# estimate empirical covariance function
+med_polish_resi_lrc = cov(t(med_polish_resi))
+}
+# perform eigen-decomposition
+med_polish_resi_eigen = eigen(med_polish_resi_lrc)
+# determine retained number of components via eigenvalue ratio
+ret_component = vector("numeric", length(med_polish_resi_eigen$values) - 1)
+for(ik in 1:(length(med_polish_resi_eigen$values) - 1)){
+ret_component[ik] = med_polish_resi_eigen$values[ik+1]/med_polish_resi_eigen$values[ik]
+}
+retain_component = which.min(ret_component)
+# determine 1st set of basis function and its scores
+med_polish_resi_basis = as.matrix(med_polish_resi_eigen$vectors[,1:retain_component])
+med_polish_resi_score = crossprod(med_polish_resi, med_polish_resi_basis)
+# obtain forecasts of PC scores via auto.arima
+med_polish_resi_score_forecast = matrix(NA, retain_component, fh)
+med_polish_resi_score_forecast_boot = array(NA, dim = c(retain_component, fh, B))
+if(prediction_method=="ARIMA"){
+for(ik in 1:retain_component){
+dum = forecast_Arima(object=auto.arima(med_polish_resi_score[,ik]), h = fh, bootstrap = TRUE, npaths = B)
+med_polish_resi_score_forecast[ik,] = dum$mean
+med_polish_resi_score_forecast_boot[ik,,] = t(dum$sim)
+rm(ik); rm(dum)
+}
+}else{
+n_col=dim(t(med_polish_resi_score))[2]
+rownames(med_polish_resi_score) = 1:n_col
+dum = farforecast(object = fts(1:dim(t(med_polish_resi_score))[1],t(med_polish_resi_score)),
+h = fh, Dmax_value = 5, Pmax_value =2 ,var_type = "none")
+med_polish_resi_score_forecast = dum$point_fore$y
+}
+med_polish_resi_forecast = med_polish_resi_basis %*% med_polish_resi_score_forecast
+# add the fixed parts
+Fixed=t(fixed_com)[,1:fh]
+med_polish_curve_forecast = med_polish_resi_forecast + Fixed
+return(list(med_polish_curve_forecast=med_polish_curve_forecast,
+med_polish_resi_forecast=  med_polish_resi_forecast))
+}
+k=5
+pref_k <- pref[k:(n_year - max_h - 1 + k)]
+frc <- Pref_forecast_curves(fixed_com = fixed_com[pref_k, ],
+Residuals_f = Residuals_f[pref_k, ],
+est_method = est_method,
+fh = 1, PI = NULL, B = 1000, prediction_method=prediction_method)
+Pref_forecast_curves<-function(fixed_com,Residuals_f,
+est_method = c("lrc", "cov"),
+fh = 10, PI = NULL, B = 1000,
+prediction_method=c("ARIMA","VAR")){
+med_polish_resi=t(Residuals_f)
+if(est_method == "lrc"){
+# estimate long-run covariance by kernel sandwich estimator
+med_polish_resi_lrc = long_run_covariance_estimation(med_polish_resi)
+}else if(est_method == "cov"){
+# estimate empirical covariance function
+med_polish_resi_lrc = cov(t(med_polish_resi))
+}
+# perform eigen-decomposition
+med_polish_resi_eigen = eigen(med_polish_resi_lrc)
+# determine retained number of components via eigenvalue ratio
+ret_component = vector("numeric", length(med_polish_resi_eigen$values) - 1)
+for(ik in 1:(length(med_polish_resi_eigen$values) - 1)){
+ret_component[ik] = med_polish_resi_eigen$values[ik+1]/med_polish_resi_eigen$values[ik]
+}
+retain_component = which.min(ret_component)
+# determine 1st set of basis function and its scores
+med_polish_resi_basis = as.matrix(med_polish_resi_eigen$vectors[,1:retain_component])
+med_polish_resi_score = crossprod(med_polish_resi, med_polish_resi_basis)
+# obtain forecasts of PC scores via auto.arima
+med_polish_resi_score_forecast = matrix(NA, retain_component, fh)
+med_polish_resi_score_forecast_boot = array(NA, dim = c(retain_component, fh, B))
+if(prediction_method=="ARIMA"){
+for(ik in 1:retain_component){
+dum = forecast_Arima(object=auto.arima(med_polish_resi_score[,ik]), h = fh, bootstrap = TRUE, npaths = B)
+med_polish_resi_score_forecast[ik,] = dum$mean
+med_polish_resi_score_forecast_boot[ik,,] = t(dum$sim)
+rm(ik); rm(dum)
+}
+}else{
+n_col=dim(t(med_polish_resi_score))[2]
+rownames(med_polish_resi_score) = 1:n_col
+dum = farforecast(object = fts(1:dim(t(med_polish_resi_score))[1],t(med_polish_resi_score)),
+h = fh, Dmax_value = 5, Pmax_value =1 ,var_type = "none")
+med_polish_resi_score_forecast = dum$point_fore$y
+}
+med_polish_resi_forecast = med_polish_resi_basis %*% med_polish_resi_score_forecast
+# add the fixed parts
+Fixed=t(fixed_com)[,1:fh]
+med_polish_curve_forecast = med_polish_resi_forecast + Fixed
+return(list(med_polish_curve_forecast=med_polish_curve_forecast,
+med_polish_resi_forecast=  med_polish_resi_forecast))
+}
+k
+pref_k <- pref[k:(n_year - max_h - 1 + k)]
+frc <- Pref_forecast_curves(fixed_com = fixed_com[pref_k, ],
+Residuals_f = Residuals_f[pref_k, ],
+est_method = est_method,
+fh = 1, PI = NULL, B = 1000, prediction_method=prediction_method)
+k=6
+pref_k <- pref[k:(n_year - max_h - 1 + k)]
+frc <- Pref_forecast_curves(fixed_com = fixed_com[pref_k, ],
+Residuals_f = Residuals_f[pref_k, ],
+est_method = est_method,
+fh = 1, PI = NULL, B = 1000, prediction_method=prediction_method)
+for (k in 1:max_h) {
+pref_k <- pref[k:(n_year - max_h - 1 + k)]
+frc <- Pref_forecast_curves(fixed_com = fixed_com[pref_k, ],
+Residuals_f = Residuals_f[pref_k, ],
+est_method = est_method,
+fh = 1, PI = NULL, B = 1000, prediction_method=prediction_method)
+forecasted_prefecture[ , k] = frc$med_polish_curve_forecast
+print(k)
+}
+matplot(forecasted_prefecture,type='l')
+object = fts(1:dim(t(med_polish_resi_score))[1],t(med_polish_resi_score))
+order_select = ftsa:::method.FPE(object = object, D = Dmax_value,
+var_type = var_type, Pmax = Pmax_value)
+Dmax_value = 5
+Pmax_value =10
+order_select = ftsa:::method.FPE(object = object, D = Dmax_value,
+var_type = "none", Pmax = Pmax_value)
+order_select
+?ftsa:::method.FPE
+ftsa:::method.FPE
+################################################################################
+# Computation of the point forecasts
+################################################################################
+source("New_Point_forecast.R")
+stopCluster(cl)
+cl <- makePSOCKcluster(detectCores()-2)
+registerDoParallel(cl)
+forecasted_curves_triangular_rolling_USA_FMP_VAR <- foreach(i = 1:n_prefectures, .packages = c("ftsa")) %dopar% ForecastC(i,fixed_com=Fixed_part,Residuals_f=Residuals_,est_method = "lrc",prediction_method="VAR")
+stopCluster(cl)
+saveRDS(forecasted_curves_triangular_rolling_USA_FMP_VAR,"forecasted_curves_triangular_rolling_USA_FMP_VAR.rds")
+####################################################################################
+#Compute the error for the point forecasts obtained in the rolling window approach.
+####################################################################################
+source("./Rcodes_paper/forecast_errors.R")
+forecasted_curves_triangular_rolling_USA_FMP_VAR <- readRDS("./Rcodes_paper/results_for the plots/USA/forecasted_curves_triangular_rolling_USA_FMP_VAR.rds")
+max_h=10
+error_MAPE_male<-matrix(0,nrow=max_h,ncol = n_prefectures)
+####################################################################################
+#Compute the error for the point forecasts obtained in the rolling window approach.
+####################################################################################
+source("./Rcodes_paper/forecast_errors.R")
+forecasted_curves_triangular_rolling_USA_FMP_VAR <- readRDS("./forecasted_curves_triangular_rolling_USA_FMP_VAR.rds")
+max_h=10
+error_MAPE_male<-matrix(0,nrow=max_h,ncol = n_prefectures)
+error_RMSPE_male<-matrix(0,nrow=max_h,ncol = n_prefectures)
+error_MAPE_female<-matrix(0,nrow=max_h,ncol = n_prefectures)
+error_RMSPE_female<-matrix(0,nrow=max_h,ncol = n_prefectures)
+male<-Y[,1:n_age]
+female<-Y[,(n_age+1):(2*n_age)]
+for (i in 1:n_prefectures) {
+forecasted_pref_male=forecasted_curves_triangular_rolling_USA_FMP_VAR[[i]][1:n_age,]
+forecasted_pref_female=forecasted_curves_triangular_rolling_USA_FMP_VAR[[i]][(n_age+1):(2*n_age),]
+True_pop_male=t(male[(n_year*i-(max_h-1)):(n_year*i),])
+True_pop_female=t(female[(n_year*i-(max_h-1)):(n_year*i),])
+for (j in 1:max_h) {
+error_MAPE_male[j,i]<-mape(forecast=forecasted_pref_male[,j], true=True_pop_male[,j])
+error_RMSPE_male[j,i]<-rmspe(forecast=forecasted_pref_male[,j], true=True_pop_male[,j])
+error_MAPE_female[j,i]<-mape(forecast=forecasted_pref_female[,j], true=True_pop_female[,j])
+error_RMSPE_female[j,i]<-rmspe(forecast=forecasted_pref_female[,j], true=True_pop_female[,j])
+}
+}
+All_errors_rolling<-list(error_MAPE_male,error_MAPE_female,
+error_RMSPE_male,error_RMSPE_female)
+# saveRDS(All_errors_rolling,"All_errors_table_USA_dynamic.rds")
+Errors_mean_rolling<-matrix(0,nrow=n_prefectures,ncol=length(All_errors_rolling))
+Errors_sd_rolling<-matrix(0,nrow=n_prefectures,ncol=length(All_errors_rolling))
+for (i in 1:length(All_errors_rolling)) {
+error=All_errors_rolling[[i]]
+Errors_mean_rolling[,i]=apply( error,2,mean)
+Errors_sd_rolling[,i]=apply( error,2,sd)
+}
+colnames(Errors_mean_rolling)<-c("MAPE_male","MAPE_female","RMSPE_male","RMSPE_female")
+colnames(Errors_sd_rolling)<-c("MAPE_male","MAPE_female","RMSPE_male","RMSPE_female")
+rownames(Errors_mean_rolling)<-names_states
+rownames(Errors_sd_rolling)<-names_states
+saveRDS(Errors_mean_rolling,"Errors_mean_rolling_VAR_USA_Dyn.rds")
+View(Errors_mean_rolling)
+us.means <- readRDS("./results/USA/Errors_mean_1_USA.rds")
+us.means <- readRDS(".Rcodes_paper/results/USA/Errors_mean_1_USA.rds")
+us.means <- readRDS("./Rcodes_paper/results/USA/Errors_mean_1_USA.rds")
+setwd("~/My Drive/Fall 2023/STAT 397/PhD project 4/Revisions from JCGS/Rcodes/")
+us.means <- readRDS("./Rcodes_paper/results/USA/Errors_mean_1_USA.rds")
+us.means <- readRDS("./Rcodes_paper/results_for the plots/USA/Errors_mean_1_USA.rds")
+View(us.means <- readRDS("./results/USA/Errors_mean_1_USA.rds"))
+us.means <- readRDS("./results/USA/Errors_mean_1_USA.rds") <- readRDS("./Rcodes_paper/results_for the plots/USA/Errors_mean_1_USA.rds")
+us.means <- readRDS("./Rcodes_paper/results_for the plots/USA/Errors_mean_1_USA.rds")
+View(us.means)
+par(mfrow=c(2,1))
+boxplot(us.means[,1],Errors_mean_rolling[,1],us.means[,2],Errors_mean_rolling[,2],main="MAPE")
+boxplot(us.means[,3],Errors_mean_rolling[,3],us.means[,4],Errors_mean_rolling[,4],main="RMPSE")
+par(mfrow=c(1,1))
+boxplot(us.means[,1],Errors_mean_rolling[,1],us.means[,2],Errors_mean_rolling[,2],main="MAPE")
+boxplot(us.means[,3],Errors_mean_rolling[,3],us.means[,4],Errors_mean_rolling[,4],main="RMPSE")
+boxplot(us.means[,1],Errors_mean_rolling[,1],us.means[,2],Errors_mean_rolling[,2],main="MAPE",col=c("blue","blue","red","red"))
+par(mfrow=c(1,2))
+boxplot(us.means[,2],Errors_mean_rolling[,2],main="MAPE Female",col=c("blue","red"))
+boxplot(us.means[,1],Errors_mean_rolling[,1],main="MAPE Male",col=c("blue","red"))
+par(mfrow=c(1,2))
+boxplot(us.means[,2],Errors_mean_rolling[,2],main="MAPE Female",col=c("blue","red"))
+boxplot(us.means[,1],Errors_mean_rolling[,1],main="MAPE Male",col=c("blue","red"))
+boxplot(us.means[,4],Errors_mean_rolling[,4],main="RMPSE Female",col=c("blue","red"))
+boxplot(us.means[,3],Errors_mean_rolling[,3],main="RMPSE Male",col=c("blue","red"))
+#1. This scripts can be easily incorporated to the other two data sets (France and Japan)
+# by simply changing the data set entries and the data.
+# changing the folder name (France or Japan). e.g., ./dataset_entries/France/
+packages <- c("generics", "demography", "forecast","fda","fdaoutlier",
+"rlist", "mrfDepth","ftsa","rainbow")
+## Now load or install&load all
+package_check <- lapply(
+packages,
+FUN <- function(x) {
+if (!require(x, character.only = TRUE)) {
+install.packages(x, dependencies = TRUE)
+library(x, character.only = TRUE)
+}
+}
+)
+################################################################################
+# Data set entries
+################################################################################
+dataset_entries<-readRDS("./dataset_entries/USA/dataset_entries.rds")
+year = dataset_entries[[1]]
+n_year = dataset_entries[[2]]
+age = dataset_entries[[3]]
+n_age = dataset_entries[[4]]
+n_prefectures=dataset_entries[[5]]
+# Row partition
+part_list = list()
+for(ik in 1:n_prefectures) {
+part_list[[ik]] = (n_year*ik-(n_year-1)):(n_year*ik)
+}
+#Column partition
+n_populations=2
+part_list_c = list()
+for(ik in 1:n_populations) {
+part_list_c[[ik]] = (n_age*ik-(n_age-1)):(n_age*ik)
+}
+remove_zeroes <- function(data_raw,n_prefectures,n_year,n_age) {
+N       <- n_prefectures
+T       <- n_year
+age_max <- n_age
+data_nozero <- list()
+for(i in 1:N) {
+data_nozero[[i]] <- matrix(data_raw[[i]],age_max,T)
+}
+for(i in 1:N) {
+for(j in 2:age_max) {#For j=1, the two zeroes have been removed before
+for(k in 1:T){
+if(data_nozero[[i]][j,k]==-Inf){
+data_nozero[[i]][j,k] <- data_nozero[[i]][j-1,k]
+}
+}
+}
+}
+return(data_nozero)
+}
+names_states <- readRDS("./names_states/USA/names_states.rds")
+################################################################################
+# Data set
+################################################################################
+USA_male <- readRDS("./datasets/USA/USA_male.rds")
+USA_female <- readRDS("./datasets/USA/USA_female.rds")
+# Remove the zeros in the datasets
+USA_male   <-remove_zeroes(data_raw=USA_male,n_prefectures,n_year,n_age)
+USA_female <-remove_zeroes(data_raw=USA_female,n_prefectures,n_year,n_age)
+################################################################################
+# Data set entries
+################################################################################
+dataset_entries<-readRDS("./dataset_entries/USA/dataset_entries.rds")
+setwd("~/My Drive/Fall 2023/STAT 397/PhD project 4/Revisions from JCGS/Rcodes/")
+setwd("~/My Drive/Fall 2023/STAT 397/PhD project 4/Revisions from JCGS/Rcodes/")
+################################################################################
+# Data set entries
+################################################################################
+dataset_entries<-readRDS("./dataset_entries/USA/dataset_entries.rds")
+year = dataset_entries[[1]]
+################################################################################
+# Data set entries
+################################################################################
+dataset_entries<-readRDS("./Rcodes_paper/dataset_entries/USA/dataset_entries.rds")
+year = dataset_entries[[1]]
+n_year = dataset_entries[[2]]
+age = dataset_entries[[3]]
+n_age = dataset_entries[[4]]
+n_prefectures=dataset_entries[[5]]
+# Row partition
+part_list = list()
+for(ik in 1:n_prefectures) {
+part_list[[ik]] = (n_year*ik-(n_year-1)):(n_year*ik)
+}
+#Column partition
+n_populations=2
+part_list_c = list()
+for(ik in 1:n_populations) {
+part_list_c[[ik]] = (n_age*ik-(n_age-1)):(n_age*ik)
+}
+remove_zeroes <- function(data_raw,n_prefectures,n_year,n_age) {
+N       <- n_prefectures
+T       <- n_year
+age_max <- n_age
+data_nozero <- list()
+for(i in 1:N) {
+data_nozero[[i]] <- matrix(data_raw[[i]],age_max,T)
+}
+for(i in 1:N) {
+for(j in 2:age_max) {#For j=1, the two zeroes have been removed before
+for(k in 1:T){
+if(data_nozero[[i]][j,k]==-Inf){
+data_nozero[[i]][j,k] <- data_nozero[[i]][j-1,k]
+}
+}
+}
+}
+return(data_nozero)
+}
+names_states <- readRDS("./names_states/USA/names_states.rds")
+################################################################################
+# Data set
+################################################################################
+USA_male <- readRDS("./datasets/USA/USA_male.rds")
+names_states <- readRDS("./Rcodes_paper/names_states/USA/names_states.rds")
+################################################################################
+# Dataset
+################################################################################
+USA_male <- readRDS("./Rcodes_paper/datasets/USA/USA_male.rds")
+USA_female <- readRDS("./Rcodes_paper/datasets/USA/USA_female.rds")
+# Remove the zeros in the datasets
+USA_male   <-remove_zeroes(data_raw=USA_male,n_prefectures,n_year,n_age)
+USA_female <-remove_zeroes(data_raw=USA_female,n_prefectures,n_year,n_age)
+all_male<-t(list.cbind(USA_male))
+all_female<-t(list.cbind(USA_female))
+########################################################################
+# Comparison with the functional mean ANOVA approach (FM-ANOVA)
+########################################################################
+# source("FM-ANOVA_decomposition.R")
+# This function computes the functional mean ANOVA decomposition based on means
+FANOVA_means<-ftsa::FANOVA(data_pop1=t(all_male),data_pop2=t(all_female),year,age,n_prefectures,n_populations)
+#This function computes the functional residuals after removing the deterministic components
+# obtained from the FANOVA function.
+Residuals_means<-ftsa::Two_way_Residuals_means(data_pop1=t(all_male),data_pop2=t(all_female),
+year,age,n_prefectures,n_populations)
+Res1_means=Residuals_means$residuals1_mean
+Res2_means=Residuals_means$residuals2_mean
+Residuals_mean<-cbind(Res1_means,Res2_means)
+# Reconstructed data
+RR<-Residuals_means$rd #Matrix with the original data reconstructed from the FMP decomposition
+#  It's the proof of the reconstruction of the residuals.
+Residuals_means$R #The result should be a vector with two entries TRUE, TRUE.
+#Indicating that after adding both deterministic and time-varying components the FTS are recovered.
+Fixed_part_means<-Residuals_means$Fixed_comp_mean # deterministic components to be added up after forecasting
+################################################################################
+# Computation of the point forecasts based on functional mean ANOVA (FM-ANOVA)
+################################################################################
+source("New_Point_forecast.R")
+cl <- makePSOCKcluster(detectCores()-2)
+registerDoParallel(cl)
+forecasted_curves_triangular_rolling_USA_FM_VAR <- foreach(i = 1:n_prefectures, .packages = c("ftsa")) %dopar% ForecastC(i,fixed_com=Fixed_part,Residuals_f=Residuals_,est_method = "lrc",prediction_method="VAR")
+stopCluster(cl)
+cl <- makePSOCKcluster(detectCores()-2)
+registerDoParallel(cl)
+forecasted_curves_triangular_rolling_USA_FM_VAR <- foreach(i = 1:n_prefectures, .packages = c("ftsa")) %dopar% ForecastC(i,fixed_com=Fixed_part_means,Residuals_f=Residuals_mean,est_method = "lrc",prediction_method="VAR")
+fixed_com=Fixed_part_means
+dim(fixed_com)
+Residuals_f=Residuals_mean
+dim(fixed_com)
+est_method = "lrc"
+prediction_method="VAR"
+i
+i
+i=§
+i=1
+pref=(n_year * i - (n_year - 1)):(n_year * i)
+forecasted_prefecture <- matrix(0, nrow = n_age * 2, ncol = max_h)
+for (k in 1:max_h) {
+pref_k<-pref[1:(n_year-max_h-1+k)]
+frc=Pref_forecast_curves(fixed_com=fixed_com[pref_k,],
+Residuals_f=Residuals_f[pref_k,],
+est_method = est_method,
+fh = k, PI = NULL, B = 1000,prediction_method)
+forecasted_prefecture[,k]=frc$med_polish_curve_forecast[,1]
+}
+forecasted_prefecture <- matrix(0, nrow = n_age * 2, ncol = max_h)
+for (k in 1:max_h) {
+pref_k<-pref[1:(n_year-max_h-1+k)]
+frc=Pref_forecast_curves(fixed_com=fixed_com[pref_k,],
+Residuals_f=Residuals_f[pref_k,],
+est_method = est_method,
+fh = k, PI = NULL, B = 1000,prediction_method)
+forecasted_prefecture[,k]=frc$med_polish_curve_forecast[,1]
+print(k)
+}
+forecasted_prefecture <- matrix(0, nrow = n_age * 2, ncol = max_h)
+for (k in 1:max_h) {
+pref_k <- pref[k:(n_year - max_h - 1 + k)]
+frc <- Pref_forecast_curves(fixed_com = fixed_com[pref_k, ],
+Residuals_f = Residuals_f[pref_k, ],
+est_method = est_method,
+fh = 1, PI = NULL, B = 1000, prediction_method=prediction_method)
+forecasted_prefecture[ , k] = frc$med_polish_curve_forecast
+# print(k)
+}
+forecasted_prefecture <- matrix(0, nrow = n_age * 2, ncol = max_h)
+for (k in 1:max_h) {
+pref_k <- pref[k:(n_year - max_h - 1 + k)]
+frc <- Pref_forecast_curves(fixed_com = fixed_com[pref_k, ],
+Residuals_f = Residuals_f[pref_k, ],
+est_method = est_method,
+fh = 1, PI = NULL, B = 1000, prediction_method=prediction_method)
+forecasted_prefecture[ , k] = frc$med_polish_curve_forecast
+print(k)
+}
+i=2
+i=15
+pref=(n_year * i - (n_year - 1)):(n_year * i)
+forecasted_prefecture <- matrix(0, nrow = n_age * 2, ncol = max_h)
+for (k in 1:max_h) {
+pref_k <- pref[k:(n_year - max_h - 1 + k)]
+frc <- Pref_forecast_curves(fixed_com = fixed_com[pref_k, ],
+Residuals_f = Residuals_f[pref_k, ],
+est_method = est_method,
+fh = 1, PI = NULL, B = 1000, prediction_method=prediction_method)
+forecasted_prefecture[ , k] = frc$med_polish_curve_forecast
+print(k)
+}

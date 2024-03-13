@@ -1,0 +1,197 @@
+#control type I error
+library(robustbase)
+library(MASS)
+library(Matrix)
+library(highfrequency)
+#Determine the threshold-Cutoff
+set.seed(167)
+M=100
+N=1000
+#Generations of the models
+cov.fun=function(d,k,c,mu){k*exp(-(1/c)*d^mu)}
+combinat=function(n,p){if (n<p){combinat=0}else{combinat=exp(lfactorial(n)-(lfactorial(p)+lfactorial(n-p)))}}
+t=seq(0,1,len=M)
+d1=as.matrix(dist(t,upper=TRUE,diag=TRUE))
+c=1
+sig=1
+t.cov=cov.fun(d1,sig,c,1)
+L=chol(t.cov)
+mu=0
+e=matrix(rnorm(N*M),M,N)
+#Model_0 Base Model
+Z=as.matrix(mu+t(L)%*%e)
+par(mfrow=c(1,1))
+# matplot(Z,type = 'l')
+#Computing Qn
+d=2.2191
+Q_n=matrix(NaN,nrow=1,ncol=M)
+for (i in 1:M) {
+  Q_n[,i]= Qn(Z[i,],constant = d)
+}
+Robust.cov=matrix(NaN,nrow = M,ncol = M)
+alpha=matrix(NaN,nrow = 1,ncol = M)
+beta=matrix(NaN,nrow = 1,ncol = M)
+for (i in 1:M) {
+  for (j in 1:M) {
+    if(i==j){
+      Robust.cov[i,i] = Q_n[,i]*Q_n[,i]
+    }else{
+      alpha[,i]=Q_n[,i]
+      beta[,j]=Q_n[,j]
+      A=(Qn(  ( (Z[i,]/alpha[,i]) +   (Z[j,]/beta[,j])    ), constant = d) )*(Qn(  ( (Z[i,]/alpha[,i]) +   (Z[j,]/beta[,j])    ), constant = d) )
+      B=(Qn(  ( (Z[i,]/alpha[,i]) -   (Z[j,]/beta[,j])    ), constant = d) )*(Qn(  ( (Z[i,]/alpha[,i]) -   (Z[j,]/beta[,j])    ), constant = d) )
+      Robust.cov[i,j]=((alpha[,i]* beta[,j])/4)*(A-B)
+    }
+    
+  }
+}
+#isSymmetric(Robust.cov)
+#Eigenvalues
+options(scipen=999)
+eigen(t.cov)$values
+eigen(Robust.cov)$values
+#Robust.cov.eigen=makePsd(Robust.cov)
+#eigen(Robust.cov.eigen)$values
+#########################################
+#Adjusting to a exponential covariance model
+ind=which(upper.tri(d1,diag = T),arr.ind = T)
+distances=d1[ind[order(ind[,1]),]]
+AA=log((Robust.cov))
+ind2=which(upper.tri(AA,diag = T),arr.ind = T)
+log_gamma=AA[ind[order(ind[,1]),]]
+dataset=data.frame(distances,log_gamma)
+modelfit=lm(log_gamma~distances,data = dataset)
+s=summary(modelfit)
+#plot(distances,log_gamma)
+logK=coefficients(s)[1]
+in.C=coefficients(s)[2]
+K=exp(logK);K
+C=-1/in.C;C
+fitted.cov=cov.fun(d1,K,C,1)
+Lr=chol(fitted.cov)
+#eigenvalues
+eigen(t.cov)$values
+eigen(Robust.cov)$values
+eigen(fitted.cov)$values
+P=1000
+B=10000
+TS=matrix(NaN,nrow = 1,ncol = B)
+for (j in 1:B) {
+  e1=matrix(rnorm(P*M),M,P)
+  Robus_Sample=as.matrix(t(Lr)%*%e1)
+  #matplot(Robus_Sample,type = 'l')
+  PW.Rank=as.matrix(t(apply(Robus_Sample,1,rank)))
+  Above=dim(Robus_Sample)[2]-PW.Rank
+  below=PW.Rank-1
+  PWD=as.matrix(((Above*below)+dim(Robus_Sample)[2]-1)/combinat(dim(Robus_Sample)[2],2))
+  #Computing the Pairwise depth
+  PD=matrix(NaN,nrow = (dim(Robus_Sample)[1]-1),ncol = 2*dim(Robus_Sample)[2])
+  for (k in 1:dim(PWD)[2]) {
+    PD[,(2*k-1)]=PWD[1:(dim(Robus_Sample)[1]-1),k]
+    PD[,(2*k)]=PWD[2:dim(Robus_Sample)[1],k]
+  }
+  #Computing the sample correlation of the PWD
+  prod.var2=matrix(0,ncol = 1,nrow = (dim(PD)[2]/2) )
+  for (i in 1:(dim(PD)[2]/2)) {
+    prod.var2[i,]=var(PD[,(2*i-1)])*var(PD[,(2*i)])
+  }
+  #Bivariate Distribution of Non-Outlying curves
+  samp.corr2=matrix(0,ncol = 1,nrow = (dim(PD)[2]/2))
+  for (i in 1:(dim(PD)[2]/2)) {
+    if( prod.var2[i,]!=0){
+      samp.corr2[i,]=cor(PD[,(2*i-1)],PD[,(2*i)])
+    }
+    else{
+      samp.corr2[i,]=0
+    }
+  }
+  
+  TS[,j]=abs(min(samp.corr2)-1)/sd(samp.corr2)
+  
+}
+
+#Variability of the TS
+
+#boxplot(as.vector(TS))
+
+
+#Critical values for TS
+alpha=c(0.01,0.05,0.1)
+TS_crit=rep(0,length(alpha))
+for (k in 1:length(alpha)) {
+  
+  TS_crit[k]=quantile(TS,1-alpha[k])
+}
+#Critical Values based on Robust method, for B=1000
+
+TS_crit
+
+####################################################################
+#Controlling the type I error
+set.seed(167)
+TE=c(1000,10000,100000)
+#TE=100000
+NN=length(TE)
+typeIerror1=matrix(NaN,ncol = 3,nrow = NN)
+for (x in 1:NN) {
+  count=matrix(NaN,nrow = 3,ncol = TE[x])
+  #set.seed(167)
+  for (u in 1:TE[x]) {
+    ee=matrix(rnorm(N*M),M,N)
+    #Model_0 Base Model
+    xt1=as.matrix(mu+t(L)%*%ee)
+    #matplot(xt1,type = 'l')
+    #Computations based on the sample data obtained
+    Pw.rank=as.matrix(t(apply(xt1,1,rank))) 
+    abo=N-Pw.rank
+    bel=Pw.rank-1
+    Pw.depth=as.matrix(((abo*bel)+N-1)/combinat(N,2))
+    ################################################################################
+    #The pairwise distribution for given curve then consider two consecutive points,
+    #then you better categorize the changes in time.
+    Pw.depth=as.data.frame(Pw.depth)
+    Pair.Pw.depth=matrix(NaN,nrow =(M-1),ncol = 2*N)
+    for (i in 1:dim(Pw.depth)[2]) {
+      Pair.Pw.depth[,(2*i-1)]=Pw.depth[1:(M-1),i]
+      Pair.Pw.depth[,(2*i)]=Pw.depth[2:M,i]
+    }
+    #Bivariate Distribution of Non-Outlying curves
+    prod.var=matrix(0,ncol = 1,nrow = (dim(Pair.Pw.depth)[2]/2) )
+    for (i in 1:(dim(Pair.Pw.depth)[2]/2)) {
+      prod.var[i,]=var(Pair.Pw.depth[,(2*i-1)])*var(Pair.Pw.depth[,(2*i)])
+    }
+    #Bivariate Distribution of Non-Outlying curves
+    samp.corr=matrix(0,ncol = 1,nrow = (dim(Pair.Pw.depth)[2]/2))
+    for (i in 1:(dim(Pair.Pw.depth)[2]/2)) {
+      if( prod.var[i,]!=0){
+        samp.corr[i,]=cor(Pair.Pw.depth[,(2*i-1)],Pair.Pw.depth[,(2*i)])
+      }
+      else{
+        samp.corr[i,]=0
+      }
+    }
+    
+    TS_sample=abs(min(samp.corr)-1)/sd(samp.corr)
+    
+    
+    
+    for (k in 1:length(alpha)) {
+      if(TS_sample>=TS_crit[k]){
+        count[k,u]=1
+      }else{
+        count[k,u]=0
+      }
+    }
+    
+    
+    
+    
+  } 
+  
+  
+  typeIerror1[x,]=round((apply(count, 1, sum)/TE[x])*100,2)
+  
+  
+  
+}
+typeIerror1

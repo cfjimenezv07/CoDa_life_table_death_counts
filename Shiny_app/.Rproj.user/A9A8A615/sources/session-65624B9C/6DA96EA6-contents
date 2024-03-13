@@ -1,0 +1,243 @@
+# Code to compute the PWD and PD of the models in the paper.
+library(fda)
+library(operators)
+`%!in%`=Negate(`%in%`)
+
+set.seed(167)
+M=100 #amount of time points
+N=100 #amount of curves 
+cov.fun=function(d,k,c,mu){
+  k*exp(-(1/c)*d^mu)
+}
+combinat=function(n,p){if (n<p){combinat=0}else {combinat=exp(lfactorial(n)-(lfactorial(p)+lfactorial(n-p)))}}
+t=seq(0,1,len=M)
+#parameters in the covariance function
+d1=as.matrix(dist(t,upper=TRUE,diag=TRUE))
+D=rbinom(N,1,0.01)
+k=6
+c=1
+sig=1
+t.cov=cov.fun(d1,sig,c,1)
+# Cholesky Decomposition
+L=chol(t.cov)
+e=matrix(rnorm(N*M),M,N)
+#Model_0 Base Model
+xt1=as.matrix(t(L)%*%e)
+
+#Model 1. Pure dependence shape outliers
+#covariance structure of dependence shape outliers
+t.cov1=cov.fun(d1,k,c,0.1)
+# Cholesky Decomposition
+L1=chol(t.cov1)
+out5=as.matrix(t(L1)%*%e)
+xt5=matrix(NaN,M,N)
+for (i in 1:N) {
+  if(D[i]==1){
+    xt5[,i]=out5[,i]
+  }else{
+    xt5[,i]=xt1[,i]
+  }
+}
+mm=matrix(t,M,N)
+#model 2 Phase shape outliers
+m_base=function(t){2*sin(15*pi*t)}
+m_cont=function(t){2*sin(15*pi*t+4)}
+out7.0=apply(mm,2,m_base)+t(L)%*%e
+out7.1=apply(mm,2,m_cont)+t(L)%*%e
+xt7=matrix(NaN,M,N)
+for (i in 1:N) {
+  if(D[i]==1){
+    xt7[,i] =out7.1[,i]
+  }else{
+    xt7[,i] =out7.0[,i]
+  }
+}
+#model 3 High frequency low amplitude
+A=0.1
+B=1
+m_g=function(t){A+B*atan(t)}
+m_o=function(t){atan(t)}
+t.cov2=cov.fun(d1,0.1,4,0.1)
+# Cholesky Decomposition
+L2=chol(t.cov2)
+out8.0=apply(mm,2,m_g)+t(L)%*%e
+out8.1=apply(mm,2,m_o)+t(L2)%*%e
+xt8=matrix(NaN,M,N)
+for (i in 1:N) {
+  if(D[i]==1){
+    xt8[,i] =out8.1[,i]
+  }else{
+    xt8[,i] =out8.0[,i]
+  }
+  
+}
+#Model 4  slightly modification of the Arribas-Romo model
+xt9=matrix(NaN,M,N)
+for (i in 1:N) {
+  if(D[i]==1){
+    xt9[,i] =30*t*(1-t)^(3/2)+t(L2)%*%e[,i]
+  }else{
+    xt9[,i] =30*t*(1-t)^(3/2)+t(L)%*%e[,i]
+  }
+}
+
+#model 5 Central high frequency-low amplitude
+xt10=matrix(NaN,M,N)
+for (i in 1:N) {
+  if(D[i]==1){
+    theta=runif(1,0.25,0.5)
+    xt10[,i] =0.7*sin(40*(t+theta)*pi)+t(L2)%*%e[,i]
+  }else{
+    xt10[,i] =xt1[,i]
+  }
+}
+
+model=list(xt5,xt7,xt8,xt9,xt10)
+E=length(model)
+#Compute the Pointwise depth and Pairwise depth
+PWD=list()
+PD=list()
+mediancurve=list()
+samp_corr=list()
+for (m in 1:E) {
+  Pw.rank=as.matrix(t(apply(model[[m]],1,rank))) 
+  abo=N-Pw.rank
+  bel=Pw.rank-1
+  Pw.depth=as.matrix(((abo*bel)+N-1)/combinat(N,2)) 
+  PWD[[m]]=Pw.depth
+  Pair.Pw.depth=matrix(NaN,nrow =(M-1),ncol = 2*N)
+  
+  for (i in 1:dim(Pw.depth)[2]) {
+    Pair.Pw.depth[,(2*i-1)]=Pw.depth[1:(M-1),i]
+    Pair.Pw.depth[,(2*i)]=Pw.depth[2:M,i]
+  }
+  PD[[m]]=Pair.Pw.depth
+  mediancurve[[m]]=which(fda::fbplot(model[[m]],method ='MBD',
+plot = F)$depth==max(fda::fbplot(model[[m]],method ='MBD',plot = F)$depth))
+  
+  prod.var=matrix(0,ncol = 1,nrow = (dim(Pair.Pw.depth)[2]/2) )
+  for (i in 1:(dim(Pair.Pw.depth)[2]/2)) {
+    prod.var[i,]=var(Pair.Pw.depth[,(2*i-1)])*var(Pair.Pw.depth[,(2*i)])
+    
+  }
+  
+  #Bivariate Distribution of Non-Outlying curves
+  corr=matrix(0,ncol = 1,nrow = (dim(Pair.Pw.depth)[2]/2))
+  for (i in 1:(dim(Pair.Pw.depth)[2]/2)) {
+    if( prod.var[i,]!=0){
+      
+      corr[i,]=cor(Pair.Pw.depth[,(2*i-1)],Pair.Pw.depth[,(2*i)])
+    }else{
+      corr[i,]=0
+      
+    }
+  }
+  samp_corr[[m]]=corr
+}
+
+A=which(D==1)
+
+# Code to repdroduce Figure 2
+dir.l<-"~/My Drive/Fall 2023/STAT 397/Reviews_environmetrics/Plots_paper/"
+savepdf <- function(file, width=16, height=10)
+{
+  fname <- paste(dir.l,file,".pdf",sep="")
+  pdf(fname, width=width/2.54, height=height/2.54,
+      pointsize=10)
+  par(mgp=c(2.2,0.45,0), tcl=-0.4, mar=c(3.3,3.6,1.1,1.1))
+}
+
+medians<-c(mediancurve[[1]],mediancurve[[5]],mediancurve[[2]])
+par(mfrow=c(1,1))
+
+#first row plots
+savepdf("1_1")
+mod=model[[1]]
+plot(NaN,xlim=c(0,M),ylim=c(min(mod),max(mod)),ylab='f',xlab='t')
+for (i in 1:N) {
+  if(i %!in% A){
+    lines(mod[,i],col="gray86")
+  }
+}
+
+lines(mod[,A[1]],col='chartreuse4',lwd=2)
+lines(mod[,medians[1]],col=2,lwd=2)
+dev.off()
+
+savepdf("1_2")
+boxplot(samp_corr[[1]],outcol='chartreuse4',outpch=20,ylab='r')
+dev.off()
+
+savepdf("1_3")
+PWD_m=PD[[1]]
+plot(NaN,xlim=c(0,max(PWD_m)),ylim=c(0,max(PWD_m)),ylab='PWD_f(t+1)',xlab='PWD_f(t)')
+for (i in 1:N) {
+  if (i %!in% A){
+    points(PWD_m[,(2*i-1)],PWD_m[,(2*i)],col='gray86',pch=20)
+  }
+}
+points(PWD_m[,(2*A[1]-1)],PWD_m[,(2*A[1])],col='chartreuse4',pch=16)
+points(PWD_m[,(2*medians[1]-1)],PWD_m[,(2*medians[1])],col=2,pch=19)
+dev.off()
+
+# second row plots
+savepdf("2_1")
+mod=model[[5]]
+plot(NaN,xlim=c(0,M),ylim=c(min(mod),max(mod)),ylab='f',xlab='t')
+for (i in 1:N) {
+  if(i %!in% A){
+    lines(mod[,i],col="gray86")
+  }
+}
+lines(mod[,A[1]],col='blue4',lwd=2)
+lines(mod[,medians[2]],col=2,lwd=2)
+dev.off()
+
+savepdf("2_2")
+boxplot(samp_corr[[5]],outcol='blue4',outpch=20,ylab='r')
+dev.off()
+
+savepdf("2_3")
+PWD_m=PD[[5]]
+plot(NaN,xlim=c(0,max(PWD_m)),ylim=c(0,max(PWD_m)),ylab='PWD_f(t+1)',xlab='PWD_f(t)')
+for (i in 1:N) {
+  if (i %!in% A){
+    points(PWD_m[,(2*i-1)],PWD_m[,(2*i)],col='gray86',pch=20)
+  }
+}
+points(PWD_m[,(2*A[1]-1)],PWD_m[,(2*A[1])],col='blue4',pch=19)
+points(PWD_m[,(2*medians[2]-1)],PWD_m[,(2*medians[2])],col=2,pch=16)
+dev.off()
+# Third row plots
+savepdf("3_1")
+mod=model[[2]]
+plot(NaN,xlim=c(0,M),ylim=c(min(mod),max(mod)),ylab='f',xlab='t')
+for (i in 1:N) {
+  if(i %!in% A){
+    lines(mod[,i],col="gray86")
+  }
+}
+
+lines(mod[,A[1]],col='blueviolet',lwd=2)
+lines(mod[,medians[3]],col=2,lwd=2)
+dev.off()
+
+#Boxplot 
+savepdf("3_2")
+boxplot(samp_corr[[2]],outcol='blueviolet',outpch=20,ylab='r')
+dev.off()
+
+#Bivariate distribution
+savepdf("3_3")
+PWD_m=PD[[2]]
+plot(NaN,xlim=c(0,max(PWD_m)),ylim=c(0,max(PWD_m)),ylab='PWD_f(t+1)',xlab='PWD_f(t)')
+for (i in 1:N) {
+  if (i %!in% A){
+    points(PWD_m[,(2*i-1)],PWD_m[,(2*i)],col='gray86',pch=20)
+  }
+}
+
+points(PWD_m[,(2*A[1]-1)],PWD_m[,(2*A[1])],col='blueviolet',pch=16)
+points(PWD_m[,(2*medians[3]-1)],PWD_m[,(2*medians[3])],col=2,pch=19)
+par(mfrow=c(1,1))
+dev.off()

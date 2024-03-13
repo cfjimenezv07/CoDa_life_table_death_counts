@@ -1,0 +1,95 @@
+fts.dpca <-function(X, q = 30, freq = (-1000:1000/1000) * pi, Ndpc = X$basis$nbasis) 
+{
+  if (!is.fd(X)) 
+    stop("X must be a functional data object")
+  res = list()
+  res$spec.density = fts.spectral.density(X, freq = freq, q = q)
+  res$filters = fts.dpca.filters(res$spec.density, q = q, Ndpc = Ndpc)
+  res$scores = fts.dpca.scores(X, res$filters)
+  res$var = fts.dpca.var(res$spec.density)
+  res$Xhat = fts.dpca.KLexpansion(X, res$filters)
+  res
+}
+
+
+
+fts.spectral.density <- function(X, Y = X, freq = (-1000:1000/1000) * pi, q = ceiling((dim(X$coefs)[2])^{
+  0.33
+}), weights = "Bartlett") 
+{
+  fdom = spectral.density(X = t(X$coefs), Y = t(Y$coefs), freq = freq, 
+                          q = q, weights = weights)
+  fts.freqdom(fdom, basisX = X$basis, basisY = Y$basis)
+}
+
+
+fts.dpca.filters <- function(F, Ndpc = F$basisX$nbasis, q = 30) 
+{
+  if (!is.fts.freqdom(F)) 
+    stop("F must be of class fts.freqdom")
+  if (dim(F$operators)[1] != dim(F$operators)[2]) 
+    stop("coefficients must be square matrices")
+  B = inprod(F$basisX, F$basisX)
+  B.root = eigen(B)$vectors %*% diag(sqrt(eigen(B)$values)) %*% 
+    t(eigen(B)$vectors)
+  B.root.minus = solve(B.root)
+  n = dim(F$operators)[3]
+  for (i in 1:n) {
+    F$operators[, , i] = B.root %*% F$operators[, , i] %*% 
+      B.root
+  }
+  multF = freqdom(F$operators, F$freq)
+  class(F) = "freqdom"
+  A = dpca.filters(F = F, Ndpc = Ndpc, q = q)
+  nfilters = dim(A$operators)[3]
+  ncomp = dim(A$operators)[1]
+  if (ncomp == 1) {
+    for (i in 1:nfilters) {
+      A$operators[, , i] = t(B.root.minus %*% as.matrix(A$operators[, 
+                                                                    , i]))
+    }
+  }
+  else {
+    for (i in 1:nfilters) {
+      A$operators[, , i] = t(B.root.minus %*% t(A$operators[, 
+                                                            , i]))
+    }
+  }
+  fts.timedom(A, F$basisX, F$basisX)
+}
+
+fts.dpca.scores <- function (X, dpcs = fts.dpca.filters(spectral.density(X))) 
+{
+  basisY = dpcs$basisY
+  B = inprod(basisY, basisY)
+  multX = t(B %*% X$coefs)
+  A = timedom(dpcs$operators, dpcs$lags)
+  dpca.scores(multX, A)
+}
+
+
+fts.dpca.var <- function (F) 
+{
+  if (!is.fts.freqdom(F)) 
+    stop("F must be an object of class fts.freqdom")
+  if (dim(F$operators)[1] != dim(F$operators)[2]) 
+    stop("coefficients must be square matrices")
+  B = inprod(F$basisX, F$basisX)
+  B.root = eigen(B)$vectors %*% diag(sqrt(eigen(B)$values)) %*% 
+    t(eigen(B)$vectors)
+  B.root.minus = solve(B.root)
+  n = dim(F$operators)[3]
+  for (i in 1:n) {
+    F$operators[, , i] = B.root %*% F$operators[, , i] %*% 
+      B.root
+  }
+  multF = freqdom(F$operators, F$freq)
+  dpca.var(multF)
+}
+
+fts.dpca.KLexpansion <- function (X, dpcs = fts.dpca.filters(fts.spectral.density(X))) 
+{
+  Y = fts.dpca.scores(X, dpcs)
+  dpcsmult = timedom(dpcs$operators, dpcs$lags)
+  fd(t(Y %c% freqdom.transpose(rev(dpcsmult))), dpcs$basisY)
+}

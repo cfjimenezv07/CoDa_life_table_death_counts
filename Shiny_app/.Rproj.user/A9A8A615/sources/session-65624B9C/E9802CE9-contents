@@ -1,0 +1,62 @@
+# Application part of the paper on Functional data outlier detection.
+library('fda')
+library('fda.usc')
+library('fdaoutlier')
+library('scatterplot3d')
+library('MASS')
+library('ddalpha')
+# Working directory
+setwd("~/My Drive/Fall 2023/STAT 397/Reviews_environmetrics/Rcodes/")
+# Auxiliary functions
+`%!in%`=Negate(`%in%`)
+source("aux_PV_SI.R")
+################################################################################
+# Load the data
+#1. PV
+PV_2019 <- readRDS("./PV_2019.rds")
+PV_2020 <- readRDS("./PV_2020.rds")
+PV      <- list(PV_2019,PV_2020)
+#2. GSI
+SI_2019 <- readRDS("./SI_2019.rds")
+SI_2020 <- readRDS("./SI_2020.rds")
+SI      <- list(SI_2019,SI_2020)
+################################################################################
+
+par(mfrow=c(1,1))
+outliers_PV<-list()
+outliers_magPV<-list()
+for (h in 1:2) {
+  data=PV[[h]]
+  outl_fbplot=outliers_fbplot(data)
+  outliers_magPV[[h]]<-outl_fbplot
+  med=Get_median(data)
+  data=data[,-outl_fbplot]
+  M=dim(data)[1]
+  N=dim(data)[2]
+  outl=outliers_msplot(data)
+  outliers_PV[[h]]<-outl
+  #data
+  t=seq(9,16,len=M)
+  plot(NaN,xlim=c(8,17),ylim=c(min(data),max(data)),ylab='PV system [W]',xlab='Time [h] ')
+  for (i in 1:N) {
+    if(i%!in%outl){
+      lines(t,data[,i],col='azure3')
+    }
+  }
+  for (i in 1:N) {
+    if(i%in%outl){
+      lines(t,data[,i],col='darkmagenta',lwd=2)
+    }
+  }
+  for (i in 1:N) {
+    if(i%in%med){
+      lines(t,data[,i],col=9,lwd=2)
+    }
+  }
+  
+}
+
+
+
+
+

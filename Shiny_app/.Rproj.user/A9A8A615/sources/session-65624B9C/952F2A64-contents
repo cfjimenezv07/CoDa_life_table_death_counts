@@ -1,0 +1,146 @@
+# MSplot + Proposed
+library('fda')
+library('fda.usc')
+library('fdaoutlier')
+library('scatterplot3d')
+library('MASS')
+library('ddalpha')
+# Working directory
+setwd("~/My Drive/Fall 2023/STAT 397/PhD project 1/Reviews_environmetrics/Rcodes/")
+# Auxiliary functions
+`%!in%`=Negate(`%in%`)
+source("aux_PV_SI.R")
+################################################################################
+# Load the data
+#1. PV
+PV_2019 <- readRDS("./PV_2019.rds")
+PV_2020 <- readRDS("./PV_2020.rds")
+PV      <- list(PV_2019,PV_2020)
+#2. GSI
+SI_2019 <- readRDS("./SI_2019.rds")
+SI_2020 <- readRDS("./SI_2020.rds")
+SI      <- list(SI_2019,SI_2020)
+dir.l<-"~/My Drive/Fall 2023/STAT 397/PhD project 1/Reviews_environmetrics/Plots_paper/"
+savepdf <- function(file, width=16, height=10)
+{
+  fname <- paste(dir.l,file,".pdf",sep="")
+  pdf(fname, width=width/2.54, height=height/2.54,
+      pointsize=10)
+  par(mgp=c(2.2,0.45,0), tcl=-0.4, mar=c(3.3,3.6,1.1,1.1))
+}
+
+################################################################################
+# Univariate functional outliers based on the proposed method
+
+#1. PV
+
+#Outliers detection procedure based on MS plot
+
+par(mfrow=c(1,1))
+outliers_PV<-list()
+outliers_magPV<-list()
+for (h in 1:2) {
+  data=PV[[h]]
+  outl_fbplot=outliers_fbplot(data)
+  outliers_magPV[[h]]<-outl_fbplot
+  med=Get_median(data)
+  
+  data=data[,-outl_fbplot]
+  M=dim(data)[1]
+  N=dim(data)[2]
+  outl=outliers_msplot(data)
+  #data
+  data=data[,-outl]
+  M=dim(data)[1]
+  N=dim(data)[2]
+  t=seq(0,1,len=M)
+  med=Get_median(data)
+  Pw.rank=as.matrix(t(apply(data,1,rank))) 
+  abo=N-Pw.rank
+  bel=Pw.rank-1
+  Pw.depth=as.matrix((abo*bel)/combinat(N,2)+(N-1)/combinat(N,2)) 
+  Pair.Pw.depth=matrix(NaN,nrow =(M-1),ncol = 2*N)
+  for (i in 1:dim(data)[2]) {
+    Pair.Pw.depth[,(2*i-1)]= Pw.depth[1:(M-1),i]
+    Pair.Pw.depth[,(2*i)]= Pw.depth[2:M,i]
+  }
+  prod.var=matrix(0,ncol = 1,nrow = (dim(Pair.Pw.depth)[2]/2) )
+  for (i in 1:(dim(Pair.Pw.depth)[2]/2)) {
+    prod.var[i,]=var(Pair.Pw.depth[,(2*i-1)])*var(Pair.Pw.depth[,(2*i)])
+  }
+  #Bivariate Distribution of Non-Outlying curves
+  corr=matrix(0,ncol = 1,nrow = (dim(Pair.Pw.depth)[2]/2))
+  for (i in 1:(dim(Pair.Pw.depth)[2]/2)) {
+    if( prod.var[i,]!=0){
+      corr[i,]=cor(Pair.Pw.depth[,(2*i-1)],Pair.Pw.depth[,(2*i)])
+    }else{
+      corr[i,]=0
+    }
+  }
+  #Boxplot of sample correlation
+  a=boxplot.stats(corr)[[1]][1]
+  outl=as.vector(which(corr<=a))
+  outliers_PV[[h]]<-outl
+  #data
+  t=seq(9,16,len=M)
+  
+  plot(NaN,xlim=c(8,17),ylim=c(min(data),max(data)),ylab='PV system [W]',xlab='Time [h] ')
+  for (i in 1:N) {
+    if(i%!in%outl){
+      lines(t,data[,i],col='azure3')
+    }
+  }
+  for (i in 1:N) {
+    if(i%in%outl){
+      lines(t,data[,i],col='darkmagenta',lwd=2)
+    }
+  }
+  for (i in 1:N) {
+    if(i%in%med){
+      lines(t,data[,i],col=9,lwd=2)
+    }
+  }
+  
+}
+
+
+
+#2. SI
+
+#from fbplot
+outliers_SI<-list()
+#par(mfrow=c(1,1))
+outliers_mag_SI<-list()
+for (h in 1:2) {
+  data=SI[[h]]
+  outl_fbplot=outliers_fbplot(data)
+  outliers_mag_SI[[h]]<- outl_fbplot
+  med=Get_median(data)
+  
+  
+  data=data[,-outl_fbplot]
+  M=dim(data)[1]
+  N=dim(data)[2]
+  outl=outliers_msplot(data)
+  outliers_SI[[h]]<-outl
+  #data
+  t=seq(9,16,len=M)
+  
+  plot(NaN,xlim=c(8,17),ylim=c(min(data),max(data)),ylab='Global solar irradiance [W/m^2]',xlab='Time [h] ')
+  for (i in 1:N) {
+    if(i%!in%outl){
+      lines(t,data[,i],col='azure3')
+    }
+  }
+  for (i in 1:N) {
+    if(i%in%outl){
+      lines(t,data[,i],col='darkmagenta',lwd=2)
+    }
+  }
+  for (i in 1:N) {
+    if(i%in%med){
+      lines(t,data[,i],col=9,lwd=2)
+    }
+  }
+  
+}

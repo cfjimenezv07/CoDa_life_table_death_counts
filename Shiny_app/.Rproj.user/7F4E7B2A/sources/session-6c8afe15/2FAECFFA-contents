@@ -1,0 +1,21 @@
+pfe.data <- readRDS('./data/PFE_all.Rds')
+
+gen_pfe_table <- function(.country, .divison, .gender) {
+  df <- pfe.data %>% 
+    filter(country == .country, pol_division == .divison, gender == tolower(.gender)) %>% 
+    select(-(gender:pol_division))
+  l.table <- df %>% 
+    filter(method == "FMP-ANOVA") %>% 
+    select(-method) %>% 
+    pivot_wider(names_from = metric, values_from = value) %>% 
+    select(h, KLD, JSD)
+  r.table <- df %>% 
+    filter(method != "FMP-ANOVA") %>% 
+    select(-method) %>% 
+    pivot_wider(names_from = metric, values_from = value) %>% 
+    select(KLD, JSD, -h)
+  temp <- cbind(l.table, r.table)
+  last.row <- colMeans(temp)
+  last.row[1] <- "Mean"
+  rbind(temp, last.row)
+}

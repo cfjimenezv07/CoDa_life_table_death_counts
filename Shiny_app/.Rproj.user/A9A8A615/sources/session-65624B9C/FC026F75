@@ -1,0 +1,26 @@
+{
+    "id": "FC026F75",
+    "path": "~/My Drive/Fall 2023/STAT 397/PhD project 1/Reviews_environmetrics/Rcodes/New_codes_application_PV_SI.R",
+    "project_path": null,
+    "type": "r_source",
+    "hash": "0",
+    "contents": "",
+    "dirty": true,
+    "created": 1695902647399.0,
+    "source_on_save": false,
+    "relative_order": 1,
+    "properties": {
+        "source_window_id": "",
+        "Source": "Source",
+        "cursorPosition": "119,0",
+        "scrollLine": "0"
+    },
+    "folds": "288|35|339|0|\n",
+    "lastKnownWriteTime": 1695902794,
+    "encoding": "UTF-8",
+    "collab_server": "",
+    "source_window": "",
+    "last_content_update": 1695905249901,
+    "read_only": false,
+    "read_only_alternatives": []
+}

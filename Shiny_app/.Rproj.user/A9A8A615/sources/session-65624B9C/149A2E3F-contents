@@ -1,0 +1,193 @@
+# Dependence shape outliers analysis with different K and mu
+
+library(fda)
+library(operators)
+`%!in%`=Negate(`%in%`)
+set.seed(167)
+M=100 #amount of time points
+N=100 #amount of curves 
+cov.fun=function(d,K,c,mu){
+  K*exp(-(1/c)*d^mu)
+}
+combinat=function(n,p){if (n<p){combinat=0}else {combinat=exp(lfactorial(n)-(lfactorial(p)+lfactorial(n-p)))}}
+t=seq(0,1,len=M)
+TE= 500
+E=9 #all models considered
+TPR=matrix(NaN,ncol = TE,nrow =E)
+FPR=matrix(NaN,ncol = TE,nrow =E)
+
+for (u in 1:TE) {
+  
+# Model 0. Base Model
+  #parameters in the covariance function for the non-outlying curves
+  d1=as.matrix(dist(t,upper=TRUE,diag=TRUE))
+  c=1
+  sig=1
+  t.cov=cov.fun(d1,sig,c,1)
+  # Cholesky Decomposition
+  L=chol(t.cov)
+  e=matrix(rnorm(N*M),M,N)
+  xt1=as.matrix(t(L)%*%e)
+
+################################################
+D=rbinom(N,1,0.1) # Outliers
+################################################
+
+# Model 1. Shape dependece outliers
+K=c(2,4,6)
+mu=c(0.7,0.5,0.1)
+model_1 <- array(NA,dim = c(M,N,length(K),length(mu)))
+for (i in 1:length(K)) {
+  for (j in 1:length(mu)) {
+    #parameters in the covariance function for the shape dependence outlying curves
+    t.cov1=cov.fun(d1,K[i],c,mu[j])
+    L1=chol(t.cov1)
+    model_1[,,i,j]=as.matrix(t(L1)%*%e)
+  }
+}
+
+# All curves with outliers
+Model_1_WO=array(NA,dim = c(M,N,length(K),length(mu)))
+for (i in 1:length(K)) {
+  for (j in 1:length(mu)) {
+    xt5=matrix(NA,M,N)
+    for (k in 1:N) {
+      if(D[k]==1){
+        xt5[,k]=model_1[,k,i,j]
+      }else{
+        xt5[,k]=xt1[,k]
+      }
+    }
+    Model_1_WO[,,i,j]=xt5
+  }
+}
+# Some plots
+# par(mfrow=c(1,2))
+# plot(NA,xlim=c(0,1),ylim=c(min(Model_1_WO),max(Model_1_WO)),ylab="y",xlab="t")
+# for (i in 1:N) {
+#   if(D[i]!=1){
+#     lines(t,Model_1_WO[,i,1,1],col="gray86")
+#   }
+# }
+# plot(NA,xlim=c(0,1),ylim=c(min(Model_1_WO),max(Model_1_WO)),ylab="y",xlab="t")
+# for (i in 1:N) {
+#   if(D[i]==1){
+#     lines(t,Model_1_WO[,i,1,1],col=2,lwd=1)
+#   }
+# }
+
+# Detect outliers from PWD
+model=list(Model_1_WO[,,1,1],Model_1_WO[,,1,2],Model_1_WO[,,1,3],Model_1_WO[,,2,1],
+           Model_1_WO[,,2,2],Model_1_WO[,,2,3],Model_1_WO[,,3,1],Model_1_WO[,,3,2],
+           Model_1_WO[,,3,3])
+
+E=length(model) # total amount of models
+
+# Outliers from My method
+samp_corr=matrix(NaN,nrow =N,ncol = E)
+inf_limit=matrix(NaN,nrow=1,ncol=E)
+indiv_TS2=matrix(NaN,nrow=N,ncol = E)
+sup_limit=matrix(NaN,nrow=1,ncol=E)
+
+for (m in 1:E) {
+  
+  Pw.rank=as.matrix(t(apply(model[[m]],1,rank))) 
+  abo=N-Pw.rank
+  bel=Pw.rank-1
+  Pw.depth=as.matrix(((abo*bel)+N-1)/combinat(N,2)) 
+  
+  Pair.Pw.depth=matrix(NaN,nrow =(M-1),ncol = 2*N)
+  for (i in 1:dim( Pw.depth)[2]) {
+    Pair.Pw.depth[,(2*i-1)]= Pw.depth[1:(M-1),i]
+    Pair.Pw.depth[,(2*i)]= Pw.depth[2:M,i]
+  }
+  
+  prod.var=matrix(0,ncol = 1,nrow = (dim(Pair.Pw.depth)[2]/2) )
+  for (i in 1:(dim(Pair.Pw.depth)[2]/2)) {
+    prod.var[i,]=var(Pair.Pw.depth[,(2*i-1)])*var(Pair.Pw.depth[,(2*i)])
+    
+  }
+  
+  #Bivariate Distribution of Non-Outlying curves
+  corr=matrix(0,ncol = 1,nrow = (dim(Pair.Pw.depth)[2]/2))
+  for (i in 1:(dim(Pair.Pw.depth)[2]/2)) {
+    if( prod.var[i,]!=0){
+      corr[i,]=cor(Pair.Pw.depth[,(2*i-1)],Pair.Pw.depth[,(2*i)])
+    }else{
+      corr[i,]=0
+    }
+  }
+  
+  samp_corr[,m]=corr
+  inf_limit[,m]=boxplot.stats(samp_corr[,m])[[1]][1]
+  ts.c2=matrix(0,ncol = 1,nrow = (dim(Pair.Pw.depth)[2]/2))
+  for (i in 1:(dim(Pair.Pw.depth)[2]/2)) {
+    if( prod.var[i,]!=0){
+      ts.c2[i,]=abs(corr[i,]-1)/sd(corr)
+    }
+    else{
+      ts.c2[i,]=abs(-1)/sd(corr)
+    }
+    
+    
+  } 
+  indiv_TS2[,m]=ts.c2
+  sup_limit[,m]=boxplot.stats(indiv_TS2[,m])[[1]][5]
+}
+
+
+
+outliers=list()
+for (y in 1:E) {
+  outliers[[y]]=as.vector(which(indiv_TS2[,y]>=sup_limit[,y]))
+}
+
+
+
+# outliers=list()
+# for (y in 1:E) {
+#   outliers[[y]]=as.vector(which(samp_corr[,y]<=inf_limit[,y]))
+# }
+
+true_out=rep(0,E)
+false_out=rep(0,E)
+
+
+
+o = 1
+for (i in outliers) {
+  for (j in i) {
+    if (j %in% which(D == 1)) {
+      true_out[o] = true_out[o] + 1
+    } else if (j %in% which(D == 0)) {
+      false_out[o] =false_out[o] + 1
+    }
+  }
+  o = o + 1
+}
+
+
+total_out=sum(D)
+
+TPR[,u]=(true_out/total_out)*100
+FPR[,u]=(false_out/(N-total_out))*100
+
+}
+
+# True positive rate
+mean.TPR=round(apply(TPR,1,mean),2);mean.TPR
+sd.TPR=round(apply(TPR,1,sd),2);sd.TPR
+
+All_TPR<-rbind()
+
+# False positive rate
+mean.FPR=round(apply(FPR,1,mean),2);mean.FPR
+sd.FPR=round(apply(FPR,1,sd),2);sd.FPR
+
+All<-rbind(mean.TPR,sd.TPR,mean.FPR,sd.FPR)
+
+# Table for the paper
+
+xtable(All)
+
+

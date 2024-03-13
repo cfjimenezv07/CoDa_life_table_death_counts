@@ -1,0 +1,73 @@
+#Making data ready for the pfe table
+
+#gettig the names regarding the departments or states
+names.france <- sapply(readRDS("names/names_departments.rds"), function(x) x)
+names.us <- sapply(readRDS("names/names_states.rds"), function(x) x)
+names <- list(France = names.france, USA = names.us)
+
+get_pfe_dataset <- function(.country, .method, .metric, .gender) {
+  #reading the data
+  path <- paste0("./datasets_shiny_app/PFE/",.country,"/", .method, "/", .metric, "/", .country, 
+                 "_FM", ifelse(.method != "FM-ANOVA", "P", ""), "_", .metric, "_", .gender, ".rds")
+  df <- readRDS(path)
+  colnames(df) <- names[[.country]] #labeling the departments or states
+  df <- as.data.frame(df)
+  #adding the identifiers such
+  df$method <- .method 
+  df$metric <- .metric
+  df$h <- 1:10
+  df$gender <- .gender
+  df$country <- .country
+  #pivoting dataset
+  df %>% 
+    pivot_longer(-(method:country), names_to = "pol_division")
+}
+
+#generating data
+country.list <- as.list(rep(c("France", "US"), each = 8))
+method.list <- as.list(rep(c("FM-ANOVA", "FMP-ANOVA"), each = 8))
+metric.list <- as.list(rep(c("JSD", "KLD"), each = 8))
+gender.list <- as.list(rep(c("female", "male"), each = 8))
+
+
+lista <- expand_grid(country = c("France", "USA"), method = c("FM-ANOVA", "FMP-ANOVA"),
+            metric = c("JSD", "KLD"), gender = c("male", "female")) %>%
+apply(2, function(x) as.list(x))
+
+mapply(get_pfe_dataset, .country = lista$country, .method = lista$method, 
+       .metric = lista$metric, .gender = lista$gender, SIMPLIFY = F) %>% 
+  do.call(rbind.data.frame, .) %>% 
+  saveRDS('./data/PFE_all.Rds')
+
+
+#ife dataset
+
+get_ife_dataset <- function(.country, .method, .metric, .gender, .coverage) {
+  #reading the data
+  path <- paste0("./datasets_shiny_app/IFE/",.country,"/", .method, "/", .metric, "/", .country, "_",
+                 .metric, "_", .gender, "_", .coverage, "_FM", ifelse(.method != "FM-ANOVA", "P", ""), ".rds")
+  df <- readRDS(path)
+  colnames(df) <- names[[.country]] #labeling the departments or states
+  df <- as.data.frame(df)
+  #adding the identifiers such
+  df$method <- .method 
+  df$metric <- .metric
+  df$h <- 1:10
+  df$coverage <- .coverage
+  df$gender <- .gender
+  df$country <- .country
+  #pivoting dataset
+  df %>% 
+    pivot_longer(-(method:country), names_to = "pol_division")
+}
+
+
+lista <- expand_grid(country = c("France", "USA"), method = c("FM-ANOVA", "FMP-ANOVA"),
+                     metric = c("CPD", "ECP", "IS"), gender = c("male", "female"), coverage = c(80, 95)) %>%
+  apply(2, function(x) as.list(x))
+
+mapply(get_ife_dataset, .country = lista$country, .method = lista$method, 
+       .metric = lista$metric, .gender = lista$gender, .coverage = lista$coverage, SIMPLIFY = F) %>% 
+  do.call(rbind.data.frame, .) %>% 
+  saveRDS('./data/IFE_all.Rds')
+

@@ -1,0 +1,26 @@
+# Auxiliary functions for the application part
+library('fdaoutlier')
+library('fda')
+
+`%!in%`=Negate(`%in%`)
+#Outliers from fbplot
+outliers_fbplot<-function(data){
+  msp= fda::fbplot((data),plot=F)
+  outliers= msp$outpoint
+  return(outliers)
+}
+# Outliers from MS plot
+outliers_msplot<-function(data){
+  msp= fdaoutlier::functional_boxplot(t(data),
+                                      depth_method='dirout')
+  outliers= msp$outliers
+  return(outliers)
+}
+# function to obtain the median from Fbplot
+Get_median<-function(mod){
+  dd=fda::fbplot(mod,plot=F)$depth
+  med=which(dd==max(dd))
+  return(med)
+}
+
+combinat=function(n,p){if (n<p){combinat=0}else {combinat=exp(lfactorial(n)-(lfactorial(p)+lfactorial(n-p)))}}

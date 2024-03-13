@@ -1,0 +1,512 @@
+filename_expo <- paste0(dir.usa_expo, strsplit(filename, ".txt")[[1]], "_expo.txt")
+write.table(file_expo, filename_expo, sep = "\t")
+file_mort <- file[,1:3]
+colnames(file_mort)[3] <- "mx"
+filename_mort <- paste0(dir.usa_mort, strsplit(filename, ".txt")[[1]], "_mort.txt")
+write.table(file_mort, filename_mort, sep = "\t")
+file <- read.demogdata(filename_mort, filename_expo,
+type = "mortality", label = "USA",
+skip = 0)
+if(strsplit(filename, "_")[[1]][2] == "male.txt"){
+USA_male_file[strsplit(filename, "_")[[1]][1]] <- file
+}else{
+USA_female_file[strsplit(filename, "_")[[1]][1]] <- file
+}
+}
+length(USA_female_file)
+class(USA_female_file[[1]])
+USA_male_file[strsplit(filename, "_")[[1]][1]] <- demogdata(file)
+filename
+file <- read.table(paste0(dir.usa, filename), skip = 2, header = TRUE)
+file_expo <- cbind(file[,1:2], file$Lx)
+colnames(file_expo)[3] <- "mx"
+filename_expo <- paste0(dir.usa_expo, strsplit(filename, ".txt")[[1]], "_expo.txt")
+write.table(file_expo, filename_expo, sep = "\t")
+file_mort <- file[,1:3]
+colnames(file_mort)[3] <- "mx"
+filename_mort <- paste0(dir.usa_mort, strsplit(filename, ".txt")[[1]], "_mort.txt")
+write.table(file_mort, filename_mort, sep = "\t")
+file <- read.demogdata(filename_mort, filename_expo,
+type = "mortality", label = "USA",
+skip = 0)
+USA_male_file[strsplit(filename, "_")[[1]][1]] <- demogdata(filename_mort, filename_expo,
+type = "mortality", label = "USA",
+skip = 0)
+USA_male_file[strsplit(filename, "_")[[1]][1]] <- demogdata(filename_mort, filename_expo,
+type = "mortality", label = "USA")
+filename
+file <- read.table(paste0(dir.usa, filename), skip = 2, header = TRUE)
+class(file)
+file <- demogdata(filename_mort, filename_expo, ages=age,years = n_year,type = "mortality",
+label = "USA")
+file <- read.demogdata(filename_mort, filename_expo,
+type = "mortality", label = "USA",
+skip = 0)
+file.ages <- extract.ages(file, ages = 0:100)
+dim(file$rate$mx)
+n_age
+n_year
+file.ages <- extract.ages(file, ages = 0:100)
+file.ages
+View(file$rate$mx)
+# function to remove the zeros
+remove_zeroes <- function(data_raw,N,T, age_max) {
+data_nozero <- data_raw
+for(j in 2:age_max) {#For j=1, the two zeroes have been removed before
+for(k in 1:T){
+if(data_nozero[j,k]==-Inf){
+data_nozero[j,k] <- data_nozero[j-1,k]
+}
+}
+}
+return(data_nozero)
+}
+data_nozero <- remove_zeroes(data_raw=log(file$rate$mx), N=n_prefectures,T=n_year, age_max=n_age)
+dim(data_nozero )
+filename
+strsplit(filename, "_")[[1]][2] == "male.txt"
+data_list[[strsplit(filename, "_")[[1]][1]]]$rate$male <- exp(data_nozero)
+# log10mxrate <- log10(data_nozero)
+data_list <- list()
+data_list[[strsplit(filename, "_")[[1]][1]]]$rate$male <- exp(data_nozero)
+USA_male[[strsplit(filename, "_")[[1]][1]]]<- log(smooth.demogdata(data_list[[strsplit(filename, "_")[[1]][1]]])$rate$male)
+data_list[[strsplit(filename, "_")[[1]][1]]]$rate$male <- exp(data_nozero)
+USA_male[[strsplit(filename, "_")[[1]][1]]]<- log(smooth.demogdata(data_list[[strsplit(filename, "_")[[1]][1]]])$rate$male)
+strsplit(filename, "_")[[1]][1]]
+strsplit(filename, "_")[[1]][1]
+# USA_male[[strsplit(filename, "_")[[1]][1]]]<- log(smooth.demogdata(data_list[[strsplit(filename, "_")[[1]][1]]])$rate$male)
+fd_USA_male[[strsplit(filename, "_")[[1]][1]]] <- Data2fd(args, data_nozero, basis)
+dim(data_nozero)[1]
+basis <- create.bspline.basis(c(0, 1), nbasis = 9, norder = 4)
+args <- seq(0, 1, length=dim(data_nozero)[1])
+# USA_male[[strsplit(filename, "_")[[1]][1]]]<- log(smooth.demogdata(data_list[[strsplit(filename, "_")[[1]][1]]])$rate$male)
+fd_USA_male[[strsplit(filename, "_")[[1]][1]]] <- Data2fd(args, data_nozero, basis)
+# Load the raw files
+# # Load the data
+dir.usa<-"~/My Drive/Spring 2023/STAT 397/PhD project 4/USA/"
+dir.usa_expo<-"~/My Drive/Spring 2023/STAT 397/PhD project 4/USA_expo/"
+dir.usa_mort<-"~/My Drive/Spring 2023/STAT 397/PhD project 4/USA_mort/"
+filenames     <- dir(dir.usa)
+USA_male      <- list()
+USA_female    <- list()
+fd_USA_male   <- list()
+fd_USA_female <- list()
+for(filename in dir(dir.usa)){
+cat(filename, "\n")
+file <- read.table(paste0(dir.usa, filename), skip = 2, header = TRUE)
+file_expo <- cbind(file[,1:2], file$Lx)
+colnames(file_expo)[3] <- "mx"
+filename_expo <- paste0(dir.usa_expo, strsplit(filename, ".txt")[[1]], "_expo.txt")
+write.table(file_expo, filename_expo, sep = "\t")
+file_mort <- file[,1:3]
+colnames(file_mort)[3] <- "mx"
+filename_mort <- paste0(dir.usa_mort, strsplit(filename, ".txt")[[1]], "_mort.txt")
+write.table(file_mort, filename_mort, sep = "\t")
+file <- read.demogdata(filename_mort, filename_expo,
+type = "mortality", label = "USA",
+skip = 0)
+file.ages <- extract.ages(file, ages = 0:100)
+mxrate <- demography::smooth.demogdata(file.ages)
+data_nozero <- remove_zeroes(data_raw=log(file$rate$mx), N=n_prefectures,T=n_year, age_max=n_age)
+# log10mxrate <- log10(data_nozero)
+data_list <- list()
+basis <- create.bspline.basis(c(0, 1), nbasis = 9, norder = 4)
+args <- seq(0, 1, length=dim(data_nozero)[1])
+if(strsplit(filename, "_")[[1]][2] == "male.txt"){
+data_list[[strsplit(filename, "_")[[1]][1]]]$rate$male <- exp(data_nozero)
+# USA_male[[strsplit(filename, "_")[[1]][1]]]<- log(smooth.demogdata(data_list[[strsplit(filename, "_")[[1]][1]]])$rate$male)
+fd_USA_male[[strsplit(filename, "_")[[1]][1]]] <- Data2fd(args, data_nozero, basis)
+}else{
+data_list[[strsplit(filename, "_")[[1]][1]]]$rate$female <- exp(data_nozero)
+# USA_female[[strsplit(filename, "_")[[1]][1]]] <- log(smooth.demogdata(data_list[[strsplit(filename, "_")[[1]][1]]])$rate$female)
+fd_USA_female[[strsplit(filename, "_")[[1]][1]]] <- Data2fd(args, data_nozero, basis)
+}
+}
+saveRDS(fd_USA_male,"fd_USA_male.rds")
+saveRDS(fd_USA_female,"fd_USA_female.rds")
+res.dpca = fts.dpca(fd_USA_male[[1]], Ndpc = 1, freq=(-25:25/25)*pi)
+fd_USA_male[[1]]
+plot(res.dpca$Xhat)
+fts.plot.filters(res.dpca$filters)
+# Compute functional PCA with only one component
+res.pca = prcomp(t(X$coefs), center = TRUE)
+# Compute functional PCA with only one component
+res.pca = prcomp(t(fd_USA_male[[1]]$coefs), center = TRUE)
+res.pca$x[,-1] = 0
+# Compute empirical variance explained
+var.dpca = (1 - sum( (res.dpca$Xhat$coefs - X$coefs)**2 ) / sum(X$coefs**2))*100
+# Load example PM10 data from Graz, Austria
+data(pm10) # loads functional time series pm10 to the environment
+X = center.fd(pm10)
+# Compute functional dynamic principal components with only one component
+res.dpca = fts.dpca(X, Ndpc = 1, freq=(-25:25/25)*pi) # leave default freq for higher precision
+plot(res.dpca$Xhat)
+fts.plot.filters(res.dpca$filters)
+# Compute functional PCA with only one component
+res.pca = prcomp(t(X$coefs), center = TRUE)
+res.pca$x[,-1] = 0
+# Compute empirical variance explained
+var.dpca = (1 - sum( (res.dpca$Xhat$coefs - X$coefs)**2 ) / sum(X$coefs**2))*100
+var.pca = (1 - sum( (res.pca$x %*% t(res.pca$rotation) - t(X$coefs) )**2 ) / sum(X$coefs**2))*100
+cat("Variance explained by PCA (empirical):\t\t",var.pca,"%\n")
+cat("Variance explained by PCA (theoretical):\t",
+(1 - (res.pca$sdev[1] / sum(res.pca$sdev)))*100,"%\n")
+res.dpca = fts.dpca(fd_USA_male[[1]], Ndpc = 1, freq=(-25:25/25)*pi)
+plot(res.dpca$Xhat)
+################################################################################
+#Functional median polish decomposition and residuals
+################################################################################
+# source("FMP-ANOVA_decomposition.R")
+library("ftsa")
+Y=cbind(all_male,all_female)
+################################################################################
+# Datasets
+################################################################################
+# USA
+names_states_USA <- readRDS("./Rcodes_paper/names_states/USA/names_states.rds")
+USA_male <- readRDS("./datasets/USA/USA_male.rds")
+USA_female <- readRDS("./Rcodes_paper/datasets/USA/USA_female.rds")
+USA_male <- readRDS("./Rcodes_paper/datasets/USA/USA_male.rds")
+USA_female <- readRDS("./Rcodes_paper/datasets/USA/USA_female.rds")
+# Remove the zeros in the datasets
+USA_male   <-remove_zeroes(data_raw=Japan_male,n_prefectures,n_year,n_age)
+USA_female <-remove_zeroes(data_raw=Japan_female,n_prefectures,n_year,n_age)
+all_male<-t(list.cbind(USA_male))
+all_female<-t(list.cbind(USA_female))
+################################################################################
+#Functional median polish decomposition and residuals
+################################################################################
+# source("FMP-ANOVA_decomposition.R")
+library("ftsa")
+Y=cbind(all_male,all_female)
+Both<-ftsa::Two_way_median_polish(Y,year,age,n_prefectures,n_populations)
+Residuals<- ftsa::Two_way_Residuals(Y,n_prefectures,year,age,n_populations)
+Res1=Residuals$residuals1
+Res2=Residuals$residuals2
+Residuals_<-cbind(Res1,Res2)
+# Reconstructed data
+RR<-Residuals$rd #Matrix with the original data reconstructed from the FMP decomposition
+#  It's the proof of the reconstruction of the residuals.
+Residuals$R #The result should be a vector with two entries TRUE, TRUE.
+#Indicating that after adding both deterministic and time-varying components the FTS are recovered.
+Fixed_part<-Residuals$Fixed_comp # deterministic components to be added up after forecasting
+dim(Residuals)
+dim(Res1)
+n_age
+1:n_age
+(n_age+1):(2*n_age)
+i=1
+(1+n_year*i-n_year):(n_year*i)
+i=2
+(1+n_year*i-n_year):(n_year*i)
+i=3
+(1+n_year*i-n_year):(n_year*i)
+i=51
+(1+n_year*i-n_year):(n_year*i)
+# Construct a Fd for the functional residuals
+fd_USA_male_res <- list()
+fd_USA_female_res <- list()
+for (i in 1:n_prefectures) {
+Residuals_male   <- Res1[(1+n_year*i-n_year):(n_year*i),]
+Residuals_female <- Res2[(1+n_year*i-n_year):(n_year*i),]
+basis <- create.bspline.basis(c(0, 1), nbasis = 9, norder = 4)
+args <- seq(0, 1, length=n_age)
+fd_USA_male_res[[i]]    <- Data2fd(args, Residuals_male, basis)
+fd_USA_female_res[[i]]  <- Data2fd(args, Residuals_female, basis)
+}
+dim(Residuals_male)
+n_age
+args <- seq(0, 1, length=n_age)
+length(args)
+dim(data_nozero)
+# Construct a Fd for the functional residuals
+fd_USA_male_res <- list()
+fd_USA_female_res <- list()
+for (i in 1:n_prefectures) {
+Residuals_male   <- t(Res1[(1+n_year*i-n_year):(n_year*i),])
+Residuals_female <- t(Res2[(1+n_year*i-n_year):(n_year*i),])
+basis <- create.bspline.basis(c(0, 1), nbasis = 9, norder = 4)
+args <- seq(0, 1, length=n_age)
+fd_USA_male_res[[i]]    <- Data2fd(args, Residuals_male, basis)
+fd_USA_female_res[[i]]  <- Data2fd(args, Residuals_female, basis)
+}
+?ftsa:forecast_Arima
+?fts.dpca
+res.dpca = fts.dpca(fd_USA_male_res[[1]], Ndpc = 1, freq=(-25:25/25)*pi)
+plot(res.dpca$Xhat)
+dim(res.dpca$Xhat)
+length(res.dpca$Xhat)
+length(res.dpca$Xhat)
+res.dpca$Xhat$fdnames
+dim(res.dpca$Xhat$coefs)
+dim(res.dpca$Xhat$basis)
+length(res.dpca$Xhat$basis)
+View(res.dpca$Xhat$coefs)
+# examople:
+fixed_com   <- Fixed_part[1:62,1:101]
+Residuals_f <- Res1[1:62,]
+dim(fixed_com)
+dim(Residuals_f)
+est_method <-  "lrc"
+est_method <-  "lrc"
+fh = 30
+PI = NULL
+B = 1000
+med_polish_resi=t(Residuals_f)
+# estimate long-run covariance by kernel sandwich estimator
+med_polish_resi_lrc = long_run_covariance_estimation(med_polish_resi)
+# perform eigen-decomposition
+med_polish_resi_eigen = eigen(med_polish_resi_lrc)
+# determine retained number of components via eigenvalue ratio
+ret_component = vector("numeric", length(med_polish_resi_eigen$values) - 1)
+for(ik in 1:(length(med_polish_resi_eigen$values) - 1)){
+ret_component[ik] = med_polish_resi_eigen$values[ik+1]/med_polish_resi_eigen$values[ik]
+}
+retain_component = which.min(ret_component)
+retain_component
+dim(Residuals_f)
+dim( med_polish_resi_lrc)
+# determine retained number of components via eigenvalue ratio
+ret_component = vector("numeric", length(med_polish_resi_eigen$values) - 1)
+for(ik in 1:(length(med_polish_resi_eigen$values) - 1)){
+ret_component[ik] = med_polish_resi_eigen$values[ik+1]/med_polish_resi_eigen$values[ik]
+}
+retain_component = which.min(ret_component)
+retain_component
+# Construct a Fd for the functional residuals
+fd_USA_male_fixed <- list()
+fd_USA_female_fixed <- list()
+fd_USA_male_res <- list()
+fd_USA_female_res <- list()
+for (i in 1:n_prefectures) {
+Residuals_male   <- t(Res1[(1+n_year*i-n_year):(n_year*i),])
+Residuals_female <- t(Res2[(1+n_year*i-n_year):(n_year*i),])
+fixed_male   <- t(Fixed_part[(1+n_year*i-n_year):(n_year*i),1:n_age])
+fixed_female <- t(Fixed_part[(1+n_year*i-n_year):(n_year*i),(n_age+1):(2*n_age)])
+basis <- create.bspline.basis(c(0, 1), nbasis = 9, norder = 4)
+args <- seq(0, 1, length=n_age)
+fd_USA_male_res[[i]]    <- Data2fd(args, Residuals_male, basis)
+fd_USA_female_res[[i]]  <- Data2fd(args, Residuals_female, basis)
+fd_USA_male_fixed[[i]]    <- Data2fd(args, fixed_male, basis)
+fd_USA_female_fixed[[i]]  <- Data2fd(args, fixed_female, basis)
+}
+# example:
+fixed_com   <- fd_USA_male_fixed[[1]]
+Residuals_f <- fd_USA_male_res[[1]]
+est_method <-  "lrc"
+med_polish_resi=t(Residuals_f)
+if(est_method == "lrc"){
+# estimate long-run covariance by kernel sandwich estimator
+med_polish_resi_lrc = long_run_covariance_estimation(med_polish_resi)
+}else if(est_method == "cov"){
+# estimate empirical covariance function
+med_polish_resi_lrc = cov(t(med_polish_resi))
+}
+# estimate long-run covariance by kernel sandwich estimator
+med_polish_resi_lrc = long_run_covariance_estimation(med_polish_resi)
+res.dpca = fts.dpca(fd_USA_male_res[[1]], Ndpc = retain_component, freq=(-25:25/25)*pi)
+KL_dpca<- res.dpca$Xhat
+dim( res.dpca$Xhat)
+dim(KL_dpca$coefs)
+dim(KL_dpca$basis)
+KL_dpca$basis
+KL_dpca
+################################################################################
+# Computation of the point forecasts
+################################################################################
+source("Point_forecasting_cov.R")
+################################################################################
+# Computation of the point forecasts
+################################################################################
+source("Point_forecasting_cov.R")
+################################################################################
+# Computation of the point forecasts
+################################################################################
+source("./Point_forecasting_cov.R")
+# USA based on static FPCA
+# Set a working directory
+setwd("~/My Drive/Fall 2023/STAT 397/PhD project 4/Revisions from JCGS/Rcodes/")
+################################################################################
+# Computation of the point forecasts
+################################################################################
+source("./Point_forecasting_cov.R")
+################################################################################
+# Computation of the point forecasts
+################################################################################
+source("Point_forecasting_cov.R")
+setwd("~/My Drive/Fall 2023/STAT 397/PhD project 4/Revisions from JCGS/Rcodes")
+# USA based on static FPCA
+# Set a working directory
+setwd("~/My Drive/Fall 2023/STAT 397/PhD project 4/Revisions from JCGS/Rcodes/")
+#Library
+library(freqdom.fda)
+packages <- c("generics", "demography", "forecast","fda","fdaoutlier",
+"rlist", "mrfDepth","ftsa","rainbow")
+## Now load or install&load all
+package_check <- lapply(
+packages,
+FUN <- function(x) {
+if (!require(x, character.only = TRUE)) {
+install.packages(x, dependencies = TRUE)
+library(x, character.only = TRUE)
+}
+}
+)
+################################################################################
+# Dataset entries
+################################################################################
+dataset_entries<-readRDS("./Rcodes_paper/dataset_entries/USA/dataset_entries.rds")
+year = dataset_entries[[1]]
+n_year = dataset_entries[[2]]
+age = dataset_entries[[3]]
+n_age = dataset_entries[[4]]
+n_prefectures=dataset_entries[[5]]
+# Row partition
+part_list = list()
+for(ik in 1:n_prefectures) {
+part_list[[ik]] = (n_year*ik-(n_year-1)):(n_year*ik)
+}
+#Column partition
+n_populations=2
+part_list_c = list()
+for(ik in 1:n_populations) {
+part_list_c[[ik]] = (n_age*ik-(n_age-1)):(n_age*ik)
+}
+################################################################################
+# Datasets
+################################################################################
+# USA
+names_states_USA <- readRDS("./Rcodes_paper/names_states/USA/names_states.rds")
+USA_male <- readRDS("./Rcodes_paper/datasets/USA/USA_male.rds")
+USA_female <- readRDS("./Rcodes_paper/datasets/USA/USA_female.rds")
+all_male<-t(list.cbind(USA_male))
+all_female<-t(list.cbind(USA_female))
+################################################################################
+#Functional median polish decomposition and residuals
+################################################################################
+library("ftsa")
+Y=cbind(all_male,all_female)
+Both<-ftsa::Two_way_median_polish(Y,year,age,n_prefectures,n_populations)
+Residuals<- ftsa::Two_way_Residuals(Y,n_prefectures,year,age,n_populations)
+Res1=Residuals$residuals1
+Res2=Residuals$residuals2
+Residuals_<-cbind(Res1,Res2)
+# Reconstructed data
+RR<-Residuals$rd #Matrix with the original data reconstructed from the FMP decomposition
+#  It's the proof of the reconstruction of the residuals.
+Residuals$R #The result should be a vector with two entries TRUE, TRUE.
+#Indicating that after adding both deterministic and time-varying components the FTS are recovered.
+Fixed_part<-Residuals$Fixed_comp # deterministic components to be added up after forecasting
+################################################################################
+# Computation of the point forecasts
+################################################################################
+source("Point_forecasting_cov.R")
+################################################################################
+# Computation of the point forecasts
+################################################################################
+source("PF_cov.R")
+# USA based on static FPCA
+# Set a working directory
+setwd("~/My Drive/Fall 2023/STAT 397/PhD project 4/Revisions from JCGS/Rcodes/")
+################################################################################
+# Computation of the point forecasts
+################################################################################
+source("./Point_forecasting_cov.R")
+################################################################################
+# Computation of the point forecasts
+################################################################################
+source("Point_forecasting_cov.R")
+################################################################################
+# Computation of the point forecasts
+################################################################################
+source("Point_forecasting_cov.R")
+###############################################################################
+# Computation of the point forecast based on the FMP decomposition
+################################################################################
+library(ftsa)
+library(demography)
+source("forecast_Arima.R")
+################################################################################
+# Computation of the point forecasts
+################################################################################
+source("Point_forecasting_cov.R")
+cl <- makePSOCKcluster(detectCores()-2)
+registerDoParallel(cl)
+forecasted_curves_triangular_rolling <- foreach(i = 1:n_prefectures, .packages = c("ftsa")) %dopar% ForecastC(i,fixed_com=Fixed_part,Residuals_f=Residuals_)
+cl <- makePSOCKcluster(detectCores()-2)
+registerDoParallel(cl)
+forecasted_curves_triangular_rolling_static <- foreach(i = 1:n_prefectures, .packages = c("ftsa")) %dopar% ForecastC(i,fixed_com=Fixed_part,Residuals_f=Residuals_)
+stopCluster(cl)
+source("forecast_errors.R")
+max_h=10
+mape <- function(forecast, true)
+{
+if (length(forecast) != length(true))
+stop("MAPE: the lengths of input vectors must be the same.")
+err = mean(100 * abs((true - forecast) / true))
+return(round(err, 6))
+}
+rmspe <- function(forecast, true)
+{
+if (length(forecast) != length(true))
+stop("RMSPE: the lengths of input vectors must be the same.")
+err = sqrt(mean((100 * (true - forecast) / true)^2))
+return(round(err, 6))
+}
+max_h=10
+error_MAPE_male<-matrix(0,nrow=max_h,ncol = n_prefectures)
+error_RMSPE_male<-matrix(0,nrow=max_h,ncol = n_prefectures)
+error_MAPE_female<-matrix(0,nrow=max_h,ncol = n_prefectures)
+error_RMSPE_female<-matrix(0,nrow=max_h,ncol = n_prefectures)
+male<-Y[,1:n_age]
+female<-Y[,(n_age+1):(2*n_age)]
+for (i in 1:n_prefectures) {
+forecasted_pref_male=forecasted_curves_triangular_rolling[[i]][1:n_age,]
+forecasted_pref_female=forecasted_curves_triangular_rolling[[i]][(n_age+1):(2*n_age),]
+True_pop_male=t(male[(n_year*i-(max_h-1)):(n_year*i),])
+True_pop_female=t(female[(n_year*i-(max_h-1)):(n_year*i),])
+for (j in 1:max_h) {
+error_MAPE_male[j,i]<-mape(forecast=forecasted_pref_male[,j], true=True_pop_male[,j])
+error_RMSPE_male[j,i]<-rmspe(forecast=forecasted_pref_male[,j], true=True_pop_male[,j])
+error_MAPE_female[j,i]<-mape(forecast=forecasted_pref_female[,j], true=True_pop_female[,j])
+error_RMSPE_female[j,i]<-rmspe(forecast=forecasted_pref_female[,j], true=True_pop_female[,j])
+}
+}
+saveRDS(forecasted_curves_triangular_rolling_static,"forecasted_curves_triangular_rolling_USA_static.rds")
+max_h=10
+error_MAPE_male<-matrix(0,nrow=max_h,ncol = n_prefectures)
+error_RMSPE_male<-matrix(0,nrow=max_h,ncol = n_prefectures)
+error_MAPE_female<-matrix(0,nrow=max_h,ncol = n_prefectures)
+error_RMSPE_female<-matrix(0,nrow=max_h,ncol = n_prefectures)
+male<-Y[,1:n_age]
+female<-Y[,(n_age+1):(2*n_age)]
+for (i in 1:n_prefectures) {
+forecasted_pref_male=forecasted_curves_triangular_rolling_static[[i]][1:n_age,]
+forecasted_pref_female=forecasted_curves_triangular_rolling_static[[i]][(n_age+1):(2*n_age),]
+True_pop_male=t(male[(n_year*i-(max_h-1)):(n_year*i),])
+True_pop_female=t(female[(n_year*i-(max_h-1)):(n_year*i),])
+for (j in 1:max_h) {
+error_MAPE_male[j,i]<-mape(forecast=forecasted_pref_male[,j], true=True_pop_male[,j])
+error_RMSPE_male[j,i]<-rmspe(forecast=forecasted_pref_male[,j], true=True_pop_male[,j])
+error_MAPE_female[j,i]<-mape(forecast=forecasted_pref_female[,j], true=True_pop_female[,j])
+error_RMSPE_female[j,i]<-rmspe(forecast=forecasted_pref_female[,j], true=True_pop_female[,j])
+}
+}
+All_errors_rolling<-list(error_MAPE_male,error_MAPE_female,
+error_RMSPE_male,error_RMSPE_female)
+Errors_mean_rolling<-matrix(0,nrow=n_prefectures,ncol=length(All_errors_rolling))
+Errors_sd_rolling<-matrix(0,nrow=n_prefectures,ncol=length(All_errors_rolling))
+for (i in 1:length(All_errors_rolling)) {
+error=All_errors_rolling[[i]]
+Errors_mean_rolling[,i]=apply( error,2,mean)
+Errors_sd_rolling[,i]=apply( error,2,sd)
+}
+colnames(Errors_mean_rolling)<-c("MAPE_male","MAPE_female","RMSPE_male","RMSPE_female")
+colnames(Errors_sd_rolling)<-c("MAPE_male","MAPE_female","RMSPE_male","RMSPE_female")
+rownames(Errors_mean_rolling)<-names_states
+rownames(Errors_sd_rolling)<-names_states
+rownames(Errors_mean_rolling)<-names_states_USA
+rownames(Errors_sd_rolling)<-names_states_USA
+saveRDS(Errors_mean_rolling,"Errors_mean_rolling_USA_static.rds")
+# saveRDS(Errors_mean_rolling,"Errors_mean_rolling_USA_static.rds")
+boxplot(Errors_mean_rolling)

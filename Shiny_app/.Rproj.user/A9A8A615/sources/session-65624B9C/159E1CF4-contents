@@ -1,0 +1,151 @@
+# This code produces the plots of Figure 2.
+rm(list = ls())
+library(tidyverse)
+
+france.means <- readRDS("./results/France/Errors_mean_1_France.rds")
+france.basedmeans <- readRDS("./results/France/Errors_mean_basedmeans_1_France.rds") 
+france.naive <- readRDS("./results/France/Errors_mean_naive_France.rds")
+france.gao <- readRDS("./results/France/Errors_GAO_France.rds")
+france.tnh <- readRDS("./results/France/Errors_TNH_France.rds")
+
+
+us.means <- readRDS("./results/USA/Errors_mean_1_USA.rds")
+us.basedmeans <- readRDS("./results/USA/Errors_mean_basedmeans_1_USA.rds")
+us.naive <- readRDS("./results/USA/Errors_mean_naive_USA.rds")
+us.gao <- readRDS("./results/USA/Errors_GAO_USA.rds")
+us.tnh <- readRDS("./results/USA/Errors_TNH_USA.rds")
+
+
+#japan.means <- readRDS("./results/Japan/Errors_mean_1_Japan.rds")
+#japan.basedmeans <- readRDS("./results/Japan/Errors_mean_basedmeans_1_Japan.rds")
+japan.means <- readRDS("./results/Japan/Errors_mean_rolling_japan_new.rds")
+japan.basedmeans <- readRDS("./results/Japan/Errors_mean_basedmeans_rolling_Japan_new.rds")
+japan.naive <- readRDS("./results/Japan/Errors_mean_naive_japan.rds")
+japan.gao <- readRDS("./results/Japan/Errors_GAO_Japan.rds")
+japan.tnh <- readRDS("./results/Japan/Errors_TNH_Japan.rds")
+
+
+column_name_fixer <- function(x) {
+  str_remove(x, "(Gao||TNH)_")
+}
+
+savefig <- function(filename, height = 10, width = (1 + sqrt(5))/2*height, dpi = 300) {
+  ggsave(filename, height = height/2.54, width = width/2.54, dpi = dpi)
+}
+
+colnames(france.gao) <- sapply(colnames(france.gao), column_name_fixer)
+
+to_long <- function(x, male = T, method) {
+  temp <- rbind.data.frame(as.matrix(x[, 1]), as.matrix(x[, -1]))
+  temp$gender <- ifelse(male, "Male", "Female")
+  temp$metric <- rep(c("MAPE", "RMSPE"), each = nrow(temp)/2)
+  temp$method <- method
+  return(temp)
+}
+
+df_toplot <- function(x, country, method){
+  female <- 2*(1:2)
+  long_male <- to_long(x[, -female], method = method)
+  long_female <- to_long(x[, female], F, method)
+  out <- rbind.data.frame(long_male, long_female)
+  out$country <- country
+  out
+}
+
+#standardizing column names
+colnames(france.gao) <- sapply(colnames(france.gao), column_name_fixer)
+colnames(france.tnh) <- sapply(colnames(france.tnh), column_name_fixer)
+
+france.df <- list(france.means, france.basedmeans, france.naive, france.gao, france.tnh)
+france.country <- as.list(rep("France", 5))
+france.methods <- list("FMP-ANOVA", "FM-ANOVA", "Independence", "GAO2019", "TNH23")
+france <- 
+  do.call(rbind.data.frame,
+          mapply(df_toplot, france.df, france.country, france.methods, SIMPLIFY = F))
+
+#standardizing column names
+colnames(us.gao) <- sapply(colnames(us.gao), column_name_fixer)
+colnames(us.tnh) <- sapply(colnames(us.tnh), column_name_fixer)
+
+
+us.df <- list(us.means, us.basedmeans, us.naive, us.gao, us.tnh)
+us.country <- as.list(rep("USA", 5))
+us.methods <- list("FMP-ANOVA", "FM-ANOVA", "Independence", "GAO2019", "TNH23")
+us <- 
+  do.call(rbind.data.frame,
+          mapply(df_toplot, us.df, us.country, us.methods, SIMPLIFY = F))
+
+
+#standardizing column names
+colnames(japan.gao) <- sapply(colnames(japan.gao), column_name_fixer)
+colnames(japan.tnh) <- sapply(colnames(japan.tnh), column_name_fixer)
+
+japan.df <- list(japan.means, japan.basedmeans, japan.naive, japan.gao, japan.tnh)
+japan.country <- as.list(rep("Japan", 5))
+japan.methods <- list("FMP-ANOVA", "FM-ANOVA", "Independence", "GAO2019", "TNH23")
+japan <- 
+  do.call(rbind.data.frame,
+          mapply(df_toplot, japan.df, japan.country, japan.methods, SIMPLIFY = F))
+
+
+
+gen_plot <- function(df, filename, legend = T) {
+  p <-df %>% 
+    mutate(method = factor(method, levels = c("FMP-ANOVA", "FM-ANOVA",
+                                              "GAO2019", "TNH23", "Independence"), ordered = T),
+           metric = factor(metric, levels = c("RMSPE", "MAPE"), ordered = T)
+    ) %>% 
+    ggplot(aes(x = method, y = V1, fill = gender)) +
+    geom_boxplot(show.legend = legend, outlier.shape = NA) +
+    labs(x = "", y = "")+
+    theme(legend.position = c(0.10,0.85))
+  co <- 1
+  for (metric in c("RMSPE", "MAPE")) {
+    (p +
+      ggforce::facet_wrap_paginate(~metric, ncol = 1, nrow = 1, page = co))
+    savefig(paste0("./Plots/",filename, metric, ".pdf"))
+    co <- co + 1
+  }
+  return(p)
+}
+
+
+us.metrics <- gen_plot(us, "PF_comparisons_USA")
+france.metrics <- gen_plot(france, "PF_comparisons_France", F)
+japan.metrics <- gen_plot(japan, "PF_comparisons_Japan", F)
+
+#Deleting the top caption from France and Japan
+
+#France
+france.metrics +
+  ggforce::facet_wrap_paginate(~metric, ncol = 1, nrow = 1, page = 1,) +
+  ylim(0, 45) +
+  theme(strip.background = element_blank(), strip.text = element_blank())
+
+savefig(paste0("./Plots/", 
+              "PF_comparisons_France", "RMSPE", ".pdf"))
+
+france.metrics +
+  ggforce::facet_wrap_paginate(~metric, ncol = 1, nrow = 1, page = 2) +
+  ylim(0, 45) +
+  theme(strip.background = element_blank(), strip.text = element_blank())
+
+savefig(paste0("./Plots/", 
+              "PF_comparisons_France", "MAPE", ".pdf"))
+
+#Japan
+japan.metrics +
+  ggforce::facet_wrap_paginate(~metric, ncol = 1, nrow = 1, page = 1,) +
+  theme(strip.background = element_blank(), strip.text = element_blank())
+
+savefig(paste0("./Plots/", 
+              "PF_comparisons_Japan", "RMSPE", ".pdf"))
+
+japan.metrics +
+  ggforce::facet_wrap_paginate(~metric, ncol = 1, nrow = 1, page = 2) +
+  theme(strip.background = element_blank(), strip.text = element_blank())
+
+savefig(paste0("./Plots/", 
+              "PF_comparisons_Japan", "MAPE", ".pdf"))
+
+rm(list = ls())

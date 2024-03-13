@@ -1,0 +1,7 @@
+
+fore <-list()
+for (i in 1:n_prefectures) {
+  fore[[i]] <- ForecastC(i,fixed_com,Residuals_f,
+                        est_method = "lrc", prediction_method="VAR")
+    print(i)
+}

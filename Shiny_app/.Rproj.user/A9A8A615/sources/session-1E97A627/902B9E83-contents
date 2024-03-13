@@ -1,0 +1,229 @@
+library('rlist')
+library(demography)
+library(vars)
+library(ftsa)
+library(tsDyn)
+library(mnormt)
+
+
+setwd("/Users/jimenecf/My Drive/Fall 2023/STAT 397/PhD project 4/Revisions from JCGS/Rcodes/TNH_code/")
+
+source('./mortality data/codes/MITS_class.R') 
+
+
+path_files = './mortality data/regions'
+path_saved_files = './mortality data/results'
+path_Gaodata = './mortality data/data_Gao'
+
+load_version_code = 'v1_Gaodata_nozeroref'
+version_code = 'v2_Gaodata_nozeroref'
+
+remove_zeroes <- function(data_raw,N,T, age_max) {
+  data_nozero <- list()
+  for(i in 1:N) {
+    data_nozero[[i]] <- matrix(data_raw[[i]],age_max,T)
+  }
+  # data_nozero[[5]][1,41] <- data_nozero[[5]][1,40]
+  # data_nozero[[37]][1,42] <- data_nozero[[37]][1,41]
+  for(i in 1:N) {
+    for(j in 2:age_max) {#For j=1, the two zeroes have been removed before
+      for(k in 1:T){ 
+        if(data_nozero[[i]][j,k]==-Inf){
+          data_nozero[[i]][j,k] <- data_nozero[[i]][j-1,k]
+        }
+      }
+    }
+  }
+  return(data_nozero)
+}
+
+init_data <-  function(p,gender){
+  Gaodata <- load(paste(path_Gaodata,"data_GAO.Rdata",sep="/"))
+  NAMES = c("Hokkaido","Aomori","Iwate","Miyagi","Akita","Yamagata","Fukushima","Ibaraki","Tochigi","Gunma","Saitama","Chiba","Tokyo", "Kanagawa","Niigata","Toyama","Ishikawa","Fukui", "Yamanashi","Nagano","Gifu","Shizuoka", "Aichi","Mie","Shiga","Kyoto","Osaka" ,"Hyogo" , "Nara","Wakayama", "Tottori","Shimane","Okayama","Hiroshima","Yamaguchi" ,"Tokushima", "Kagawa","Ehime","Kochi","Fukuoka", "Saga" ,"Nagasaki","Kumamoto", "Oita" ,"Miyazaki","Kagoshima","Okinawa")
+  N <- length(data1)
+  out = c('data_frames_raw','data_nozero','data_frames_smooth','data_frames_smooth_nozero','mixed_fts','fd')
+  data_frames_raw <- list()
+  data_nozero <- list()
+  data_frames_smooth <- list()
+  data_frames_smooth_nozero <- list()
+  fd <- list()
+  mixed_fts <- mits$new()
+  
+  age_max = dim(data1[[1]]$rate$female)[1]
+  T = dim(data1[[1]]$rate$female)[2]
+  basis <- create.bspline.basis(c(0, 1), nbasis = p, norder = 4)
+  args <- seq(0, 1, length=age_max)
+  
+  
+  for(i in 1:N) {
+    if(gender=='Female') {
+      data_frames_raw[[i]] <- log(data1[[i]]$rate$female)
+      data_frames_smooth[[i]] <- log(smooth.data[[i]]$rate$female)
+    } else {
+      data_frames_raw[[i]] <- log(data1[[i]]$rate$male)
+      data_frames_smooth[[i]] <- log(smooth.data[[i]]$rate$male)
+    }
+  }
+  data_nozero <- remove_zeroes(data_frames_raw,N, T, age_max)
+  data_list <- list()
+  for(i in 1:N){
+    data_list[[i]] <- data1[[i]]
+    if(gender=='Female') {
+      data_list[[i]]$rate$female <- exp(data_nozero[[i]])
+      data_frames_smooth_nozero[[i]] <- log(smooth.demogdata(data_list[[i]])$rate$female)
+    } else{
+      data_list[[i]]$rate$male <- exp(data_nozero[[i]])
+      data_frames_smooth_nozero[[i]] <- log(smooth.demogdata(data_list[[i]])$rate$male)
+    }
+    fd[[i]] <- Data2fd(args, data_nozero[[i]], basis)
+    mixed_fts$loadFunc(fd[[i]])
+  }
+  mixed_fts$actualize()
+  names(fd) <- NAMES
+  names(data_frames_smooth) <- NAMES
+  names(data_frames_smooth_nozero) <- NAMES
+  names(data_frames_raw) <- NAMES
+  names(data_nozero) <- NAMES
+  return(mget(out))
+}
+
+data_frame <-data_nozero
+trim_data <- function(data_frame,T){
+  out <- c('data')
+  data <- list()
+  names <- names(data_frame)
+  for(i in 1:length(data_frame)){
+    data[[names[i]]] <- data_frame[[names[i]]][,1:T]
+    rownames(data[[names[i]]]) <- rownames(data_frame[[names[i]]])
+    colnames(data[[names[i]]]) <- colnames(data_frame[[names[i]]])[1:T]
+  }
+  return(mget(out))
+}
+
+
+
+order <- 3
+r <- 3
+H <- seq(1,10)
+p <- 9
+gender <- 'Male'
+test_size <- 16
+
+
+tmp <- init_data(p,gender)
+data_frames_raw <- tmp[[1]]
+data_nozero <- tmp[[2]]
+data_frames_smooth <- tmp[[3]]
+data_frames_smooth_nozero <- tmp[[4]]
+mixed_fts <- tmp[[5]]
+fd <- tmp[[6]]
+
+N <- length(data_nozero)
+age_max <- dim(data_nozero[[1]])[1]
+T <- dim(data_nozero[[1]])[2]
+start_time <- T-test_size
+end_time <- T-1
+basis <- create.bspline.basis(c(0, 1), nbasis = p, norder = 4)
+args <- seq(0, 1, length=age_max)
+model <- list()
+training_set <- list()
+years <-  sapply(colnames(data_frames_raw[[1]]),toString)
+
+
+only_load=TRUE
+
+if(!only_load){
+  for(t in start_time:end_time){ #41
+    training_set[[years[t]]] <- trim_data(data_frames_smooth_nozero,t)[[1]]
+    model[[years[t]]] <- hdfpca(training_set[[years[t]]], order, q = sqrt(dim(training_set[[years[t]]][[1]])[2]),r) 
+  }
+  
+  save(model,file=paste(path_saved_files,'/models_Gao_',gender,'_',version_code,'.Rdata',sep=""))
+} else {
+  load(paste(path_saved_files,'/models_Gao_',gender,'_',load_version_code,'.Rdata',sep=""))
+}
+print('end of modeling for Gao')
+
+predictions_GAO <- list()
+predictions_NTH <- list()
+predictions_UNI <- list()
+for(h in 1:length(H)){
+  predictions_GAO[[h]] <- array(0,dim=c(N,test_size+1-H[h],age_max))
+  predictions_NTH[[h]] <- array(0,dim=c(N,test_size+1-H[h],age_max))
+  predictions_UNI[[h]] <- array(0,dim=c(N,test_size+1-H[h],age_max))
+}
+
+r_hat <- list()
+cp <- list()
+for(t in start_time:end_time){
+  
+  cp[[years[t]]] <- mixed_fts$copy()
+  cp[[years[t]]]$trimSampleSize(t)
+  r_hat[[years[t]]] <-   est_r_abc(cp[[years[t]]],10)
+  print(paste('estimated r for year ',years[t],': ',r_hat[[years[t]]]))
+}
+
+
+for(t in start_time:end_time){
+  print(paste('estimated r for year ',years[t]))
+}
+
+for(h in 1:length(H)){
+  print(h)
+  for(t in start_time:(T-h)){ #42-h
+    predictions_NTH[[h]][,t+1-start_time,] <- predict_NTH_rknown_v2(cp[[years[t]]],H[h],p,basis,args,r_hat[[years[t]]])
+
+  }
+}
+
+
+for(t in start_time:end_time){ 
+  print(t)
+  tmp <- forecast.hdfpca(model[[years[t]]],h=max(H),B=1)
+  
+ 
+  for(i in 1:N){
+    uni_model = ftsm(fts(0:95, data_nozero[[i]][,1:t])) 
+    fmod <- forecast(uni_model, h=max(H),method="arima",stationary = TRUE) 
+    for(h in 1:min(length(H),end_time+1-t)){
+      predictions_UNI[[h]][i,t+1-start_time,]  <-  fmod$mean$y[, H[h]]
+      if(max(H)==1){
+        predictions_GAO[[h]][i,t+1-start_time,] <- tmp$forecast[[i]]
+      } else {
+        predictions_GAO[[h]][i,t+1-start_time,] <- tmp$forecast[[i]][,H[h]]
+      }
+    }
+  }
+}
+error_GAO <- matrix(0,length(H),2)
+error_NTH <- matrix(0,length(H),2)
+error_UNI <- matrix(0,length(H),2)
+error_GAO_log <- matrix(0,length(H),2)
+error_NTH_log <- matrix(0,length(H),2)
+error_UNI_log <- matrix(0,length(H),2)
+for(h in 1:length(H)){
+  error_GAO[h,1] <- compute_forecast_error(data_nozero,predictions_GAO,H[h],"MSE",TRUE)
+  error_GAO[h,2] <- compute_forecast_error(data_nozero,predictions_GAO,H[h],"MASE",TRUE)
+  error_NTH[h,1] <- compute_forecast_error(data_nozero,predictions_NTH,H[h],"MSE",TRUE)
+  error_NTH[h,2] <- compute_forecast_error(data_nozero,predictions_NTH,H[h],"MASE",TRUE)
+  error_UNI[h,1] <- compute_forecast_error(data_nozero,predictions_UNI,H[h],"MSE",TRUE)
+  error_UNI[h,2] <- compute_forecast_error(data_nozero,predictions_UNI,H[h],"MASE",TRUE)
+  error_GAO_log[h,1] <- compute_forecast_error(data_nozero,predictions_GAO,H[h],"MSE",FALSE)
+  error_GAO_log[h,2] <- compute_forecast_error(data_nozero,predictions_GAO,H[h],"MASE",FALSE)
+  error_NTH_log[h,1] <- compute_forecast_error(data_nozero,predictions_NTH,H[h],"MSE",FALSE)
+  error_NTH_log[h,2] <- compute_forecast_error(data_nozero,predictions_NTH,H[h],"MASE",FALSE)
+  error_UNI_log[h,1] <- compute_forecast_error(data_nozero,predictions_UNI,H[h],"MSE",FALSE)
+  error_UNI_log[h,2] <- compute_forecast_error(data_nozero,predictions_UNI,H[h],"MASE",FALSE)
+}
+
+print('Gao log')
+print(error_GAO_log)
+print('NTH log')
+print(error_NTH_log)
+print('UNI log')
+print(error_UNI_log)
+#print(str(predictions_NTH))
+save(predictions_GAO,predictions_NTH,predictions_UNI,error_GAO,error_NTH,error_UNI,error_GAO_log,error_NTH_log,error_UNI_log,H,data_frames_raw,data_frames_smooth,mixed_fts,file=paste(path_saved_files,'/mortality_',gender,'_',version_code,'.Rdata',sep=""))
+
+
+

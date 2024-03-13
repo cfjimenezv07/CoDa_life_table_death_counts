@@ -1,0 +1,5 @@
+# data paper envirocmetrics
+
+Method<- c("Proposed","MS plot", "TVD"," OG","MBD","ED")
+metric <- c("TPR","FPR","TPR","FPR","TPR","FPR","TPR","FPR","TPR","FPR")
+Model_1<-c(100 (0.00),100 (0.00),)
