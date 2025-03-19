@@ -1,0 +1,12 @@
+name: Shiny_app
+title: Shiny_app
+username: cristian-jimenez-varon
+account: cristian-jimenez-varon
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 13829438
+bundleId: 9711356
+url: https://cristian-jimenez-varon.shinyapps.io/Shiny_app/
+version: 1
+asMultiple: FALSE
+asStatic: FALSE

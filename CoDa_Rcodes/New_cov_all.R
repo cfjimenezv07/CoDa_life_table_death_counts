@@ -29,7 +29,7 @@ interval_score <- function(holdout, lb, ub, alpha,na.rm=TRUE)
   return(score)
 }
 
-build.tensor <- function(l, nrows, ncols,name) {
+build.tensor <- function(l, nrows, ncols,name,fh) {
   tensor <- array(0, dim = c(nrows, ncols, ncols))
   tensor[, , 1] <- l[[1]][[name]]
   for (i in 1:(fh-1)) {
@@ -112,8 +112,8 @@ coverage_CoDA2 <- function(dat,fixed_comp,alpha_transf,fh, B, level, fmethod ="a
                                                                          alpha_transf=alpha_transf,fh=(fh-iwk+1), B=B, level=level, 
                                                                          fmethod=fmethod,ncomp_selection =ncomp_selection)
    
-    lb <- build.tensor(l=boot,nrows=nrow(sim_data),ncols=fh,name="lb")
-    ub <- build.tensor(l=boot,nrows=nrow(sim_data),ncols=fh,name="ub")
+    lb <- build.tensor(l=boot,nrows=nrow(sim_data),ncols=fh,name="lb",fh)
+    ub <- build.tensor(l=boot,nrows=nrow(sim_data),ncols=fh,name="ub",fh)
 
      
 
@@ -121,6 +121,6 @@ coverage_CoDA2 <- function(dat,fixed_comp,alpha_transf,fh, B, level, fmethod ="a
 
   result <-compare.data(lb=lb, ub=ub, real=test_data, fh=fh, level)
   
-  return(list(result=result))
+  return(list(lb=lb,ub=ub,result=result))
   
 }

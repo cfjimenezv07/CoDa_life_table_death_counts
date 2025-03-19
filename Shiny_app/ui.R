@@ -7,11 +7,11 @@ Ui <- fluidPage(
     column(4,
            wellPanel(
              div(id = "hidden",
-               selectInput(
-                 "countrySelector",
-                 "Country",
-                 c("USA", "France")
-               ),
+                 selectInput(
+                   "countrySelector",
+                   "Country",
+                   c("USA", "France")
+                 ),
              ),
              conditionalPanel(
                "input.countrySelector == 'USA'",
@@ -34,14 +34,14 @@ Ui <- fluidPage(
                          c("Male", "Female")
              ),
              selectInput(
-               "coverageSelector",
-               "Nominal Coverage",
-               c("80%", "95%")
-             ),
-             selectInput(
                "pcaSelector",
                "Selection method for the FPCA",
                c("EVR", "K = 6")
+             ),
+             selectInput(
+               "forecastSelector",
+               "Forecast horizon",
+               c("1", "2","3","4","5","6","7","8","9","10")
              )
            ),
            div(
@@ -56,7 +56,14 @@ Ui <- fluidPage(
                "Authors",
                br(),
                br(),
-               "Cristian F. Jiménez-Varón and Ying Sun",
+               "Cristian F. Jiménez-Varón",
+               br(),
+               "Department of Mathematics",
+               br(),
+               "University of York",
+               br(),
+               br(),
+               "Ying Sun",
                br(),
                "CEMSE Division",
                br(),
@@ -74,34 +81,18 @@ Ui <- fluidPage(
            leafletOutput("map")
     ),
     column(4,
+           # Upper part with the table
            div(
              style = "display: flex; justify-content: center; align-items: center",
              h4("Point forecast evaluation", style = "font-weight: bold;")
            ),
            div(DT::dataTableOutput("PFETable")),
-           # DT::dataTableOutput("summaryMetricsTable"),
-           conditionalPanel(
-             "input.coverageSelector == '80%'",
-             div(
-               style = "display: flex; justify-content: center; align-items: center",
-               h4("Interval forecast evaluation 80% nominal coverage",
-                  style = "font-weight: bold;")
-             )
-           ),
-           conditionalPanel(
-             "input.coverageSelector == '95%'",
-             div(
-               style = "display: flex; justify-content: center; align-items: center",
-               h4("Interval forecast evaluation 95% nominal coverage",
-                  style = "font-weight: bold;")
-             )
-           ),
-           div(DT::dataTableOutput("IFETable")),
+           # Bottom part with the plot
            div(
-             style = "display: flex; justify-content: center; align-items: center",
-             h6("* All values were multiplied by a factor of 100.",
-                style = "font-weight: bold;")
-           )
+             style = "display: flex; justify-content: center; align-items: center; margin-top: 20px;",
+             h4("Holdout data - Point forecast", style = "font-weight: bold;")
+           ),
+           div(plotOutput("myPlot"))
     )
   ),
   tags$style(type = "text/css",
@@ -109,5 +100,5 @@ Ui <- fluidPage(
              h4 {text-align:center;}
              #map {height: calc(100vh - 30px) !important;}
              td {text-align:center !important;}
-             #hidden{display: none")
+             #hidden{display: none}")
 )

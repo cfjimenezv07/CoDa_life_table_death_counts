@@ -92,7 +92,7 @@ plot.fds(curves_female,main="USA: female data (1959-2020)")
 #Plots for Figure 1a, 1b.
 ################################################
 
-for a specific state
+#for a specific state
 savepdf("Fig_1a")
 Female<-All_USA_female_qx[[40]]
 colnames(Female)<-1:dim(Female)[2]

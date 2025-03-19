@@ -227,7 +227,7 @@ ForecastC <- function(i,fixed_com,Residuals_f,est_method = c("lrc", "cov"),predi
   Forc_transformed_male   <- build.tensor(l=Transform_tensor, nrows=n_age, ncols=max_h,name="forecast_male")
   Forc_transformed_female <- build.tensor(l=Transform_tensor, nrows=n_age, ncols=max_h,name="forecast_female")
   
-  print(i)
+
   return(list(dat_transformed_male =dat_transformed_male ,dat_transformed_female=dat_transformed_female,
               Forc_transformed_male=Forc_transformed_male,Forc_transformed_female=Forc_transformed_female))
 }
