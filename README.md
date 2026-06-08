@@ -2,7 +2,7 @@
 <div align="center">
   <a href="https://github.com/cfjimenezv07/Density_Functional_Panel">
     <img src="UoY.png" alt="York Logo" height="150">
-    <img src="KAUST.png" alt="KAUST Logo" height="150">
+    <img src="Kaustlogo.png" alt="KAUST Logo" height="150">
     <img src="MQ.png" alt="MQ Logo" height="150">
   </a>
 
